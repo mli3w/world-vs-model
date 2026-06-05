@@ -26,8 +26,10 @@ from worldcup_live import _norm     # noqa: E402
 LEDGER = "ledger"
 PRED = os.path.join(LEDGER, "predictions.jsonl")   # the falsifiable forecasts (the real record)
 SCORE = os.path.join(LEDGER, "scorecard.json")     # the resolved summary the board's strip reads
-CORE = os.path.join(LEDGER, "wc_core.jsonl")        # frozen Buy & Hold book
-LIVE = os.path.join(LEDGER, "wc_live.jsonl")        # frozen Active book (== Buy & Hold at day 0)
+CORE = os.path.join(LEDGER, "wc_core.jsonl")        # frozen zero-knowledge Buy & Hold book
+LIVE = os.path.join(LEDGER, "wc_live.jsonl")        # frozen zero-knowledge Active book
+ELO_CORE = os.path.join(LEDGER, "wc_elo_core.jsonl")  # frozen informed (Elo) Buy & Hold book
+ELO_LIVE = os.path.join(LEDGER, "wc_elo_live.jsonl")  # frozen informed (Elo) Active book
 CLAIM_LEVELS = ("advance", "win")                   # the levels we register a forecast for
 
 
@@ -66,35 +68,47 @@ def snapshot(ladder=None, fundamental=None, power=1.15, bankroll=1000.0, date=No
     preds = _load(PRED)
     if any(p.get("date") == date for p in preds):
         print(f"[register] a snapshot for {date} already exists — leaving it immutable.")
-        return write_scorecard()
-    slot_of = {lvl: s for lvl, _g, s in WM.LADDER}
-    new = []
-    for lvl in CLAIM_LEVELS:
-        prices = ladder.get(lvl, {})
-        if not prices:
-            continue
-        mkt, zk = _devig(prices, slot_of[lvl]), _zk(prices, slot_of[lvl], power)
-        elo = fundamental.get(lvl, {})
-        for t in prices:
-            base = round(mkt[t], 4)
-            new.append(dict(date=date, model="zero_knowledge", level=lvl, team=t,
-                            prob=round(zk[t], 4), market=base, provenance="real", outcome=None))
-            fp = elo.get(_norm(t))
-            if fp is not None:
-                new.append(dict(date=date, model="elo", level=lvl, team=t,
-                                prob=round(float(fp), 4), market=base, provenance="real", outcome=None))
-    _write(preds + new, PRED)
-    print(f"[register] wrote {len(new)} forecasts for {date} -> {PRED}")
-    if not os.path.exists(CORE):                    # freeze the day-0 paper books (once)
-        book = B.sized_book(ladder, bankroll=bankroll, power=power)
-        rows = [dict(id=f"{t['level']}:{t['team']}:{date}", level=t["level"], team=t["team"],
-                     shares=t["shares"], entry=t["entry"], date=date,
-                     note=f"day-0 {t['side'].lower()} · edge {t['edge']:+.3f}",
-                     status="open", realized=None) for t in book]
-        _write(rows, CORE)
-        _write(rows, LIVE)
-        print(f"[register] froze {len(rows)} day-0 positions -> {CORE} + {LIVE}")
+    else:
+        slot_of = {lvl: s for lvl, _g, s in WM.LADDER}
+        new = []
+        for lvl in CLAIM_LEVELS:
+            prices = ladder.get(lvl, {})
+            if not prices:
+                continue
+            mkt, zk = _devig(prices, slot_of[lvl]), _zk(prices, slot_of[lvl], power)
+            elo = fundamental.get(lvl, {})
+            for t in prices:
+                base = round(mkt[t], 4)
+                new.append(dict(date=date, model="zero_knowledge", level=lvl, team=t,
+                                prob=round(zk[t], 4), market=base, provenance="real", outcome=None))
+                fp = elo.get(_norm(t))
+                if fp is not None:
+                    new.append(dict(date=date, model="elo", level=lvl, team=t,
+                                    prob=round(float(fp), 4), market=base, provenance="real", outcome=None))
+        _write(preds + new, PRED)
+        print(f"[register] wrote {len(new)} forecasts for {date} -> {PRED}")
+    _freeze_books(ladder, fundamental, power, bankroll, date)
     return write_scorecard()
+
+
+def _freeze_books(ladder, fundamental, power, bankroll, date):
+    """Freeze each day-0 paper book to its ledger file ONCE (skips any that already exist, so they
+    stay immutable). Buy & Hold and Active start identical; they diverge once results are fed in."""
+    def _rows(book, tag):
+        return [dict(id=f"{t['level']}:{t['team']}:{date}", level=t["level"], team=t["team"],
+                     shares=t["shares"], entry=t["entry"], date=date,
+                     note=f"day-0 {tag} {t['side'].lower()} · edge {t['edge']:+.3f}",
+                     status="open", realized=None) for t in book]
+    if not os.path.exists(CORE):
+        r = _rows(B.sized_book(ladder, bankroll=bankroll, power=power), "structural")
+        _write(r, CORE); _write(r, LIVE)
+        print(f"[register] froze {len(r)} zero-knowledge positions -> {CORE} + {LIVE}")
+    if fundamental and not os.path.exists(ELO_CORE):
+        efrows = [x for x in WF.book_rows(ladder, model=fundamental, cost=WM.HALF_SPREAD)
+                  if x["level"] != "advance"]
+        r = _rows(B.sized_book(ladder, bankroll=bankroll, rows=efrows), "Elo")
+        _write(r, ELO_CORE); _write(r, ELO_LIVE)
+        print(f"[register] froze {len(r)} Elo positions -> {ELO_CORE} + {ELO_LIVE}")
 
 
 def write_scorecard():

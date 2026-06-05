@@ -30,8 +30,10 @@ import consistency as C             # noqa: E402
 LEVEL_LABEL = [("advance", "Advance"), ("reach_QF", "Reach QF"), ("reach_SF", "Reach SF"),
                ("reach_F", "Reach Final"), ("win", "Win Cup")]
 LV_IDX = {lvl: i for i, (lvl, _l) in enumerate(LEVEL_LABEL)}   # chronological order for sorting
-CORE_LEDGER = os.path.join("ledger", "wc_core.jsonl")     # the day-0 tracked book (held)
-LIVE_LEDGER = os.path.join("ledger", "wc_live.jsonl")     # the recycled book (matchday timeline)
+CORE_LEDGER = os.path.join("ledger", "wc_core.jsonl")     # zero-knowledge Buy & Hold (held)
+LIVE_LEDGER = os.path.join("ledger", "wc_live.jsonl")     # zero-knowledge Active (matchday timeline)
+ELO_CORE_LEDGER = os.path.join("ledger", "wc_elo_core.jsonl")   # informed (Elo) Buy & Hold
+ELO_LIVE_LEDGER = os.path.join("ledger", "wc_elo_live.jsonl")   # informed (Elo) Active
 SCORECARD = os.path.join("ledger", "scorecard.json")      # the public, resolved-out-of-sample record
 RESULTS_PATH = os.path.join("ledger", "wc_results.json")  # played matches -> live Elo re-forecast
 
@@ -121,9 +123,17 @@ def _econ(shares, entry):
                 stake=round(abs(shares) * (entry if shares > 0 else 1 - entry), 2))
 
 
-def _rationale(side, team, level, entry, model_p, edge):
-    """Plain-English 'why we hold this' — names the structural signal, not football."""
+def _rationale(side, team, level, entry, model_p, edge, model="zk"):
+    """Plain-English 'why we hold this' — names the signal behind the bet. `model` selects the
+    zero-knowledge (structural) or the informed (Elo) explanation."""
     rnd = dict(LEVEL_LABEL)[level]
+    if model == "elo":
+        verb = "higher" if side == "LONG" else "lower"
+        return (f"The market prices <b>{_disp(team)}</b> to {rnd} at <b>{entry*100:.1f}%</b>. Our "
+                f"<b>informed Elo</b> model — real World Football Elo run through a simulated bracket, "
+                f"<i>not</i> the market's prices — rates it {verb}, at <b>{model_p*100:.1f}%</b>, a "
+                f"<b>{edge*100:+.1f}%</b> gap. Where a public-ratings model and a liquid market disagree "
+                f"the market is usually the sharper one — the scorecard adjudicates.")
     bias = ("the market systematically <b>under</b>prices favorites — we buy the gap"
             if side == "LONG" else
             "the market systematically <b>over</b>prices longshots — we fade the gap")
@@ -344,43 +354,7 @@ def _fundamental_section(ladder, fundamental, bankroll):
         f'<div class="cm"><span>market <b>{mk*100:.1f}%</b></span><span>model <b>{mo*100:.1f}%</b></span></div>'
         f'<div class="ce {"pos" if ed > 0 else "neg"}">{ed*100:+.1f}% gap</div></div>'
         for t, mo, mk, ed in dis)
-    # exclude the ADVANCE level: the market reads a team's specific group context better than a
-    # single backward-looking Elo number, so those edges are the least trustworthy (e.g. Panama).
-    frows = [r for r in WF.book_rows(ladder, model=fundamental, cost=WM.HALF_SPREAD)
-             if r["level"] != "advance"]
-    fbook = sized_book(ladder, bankroll=bankroll, rows=frows)
-    ours_of = {(r["level"], r["team"]): r["ours"] for r in frows}
-    trs = []
-    for tk in fbook:
-        sc = "pos" if tk["side"] == "LONG" else "neg"
-        econ = _econ(tk["shares"], tk["entry"])
-        li = LV_IDX[tk["level"]]
-        ours = ours_of.get((tk["level"], tk["team"]), tk["entry"])
-        trs.append(
-            f'<tr class="clk" data-team="{html.escape(_name(tk["team"]).lower())}" onclick="w(this)">'
-            f'<td class="sd {sc}">{tk["side"]}</td><td class="team">{_disp(tk["team"])}</td>'
-            f'<td class=l data-s="{li}">{dict(LEVEL_LABEL)[tk["level"]]}</td>'
-            f'<td class=res data-s="{li}">{WM.ROUND_RESOLVES.get(tk["level"],"—")}</td>'
-            f'<td>{tk["entry"]*100:.1f}%</td><td>{ours*100:.1f}%</td><td>${tk["stake"]:.0f}</td>'
-            f'<td class="{"pos" if tk["edge"]>0 else "neg"}">{tk["edge"]*100:+.1f}%</td>'
-            f'<td class="neg">${econ["max_down"]:.2f}</td><td class="pos">+${econ["max_up"]:.2f}</td></tr>')
-        why = (f'The independent <b>Elo</b> model puts <b>{_disp(tk["team"])}</b> to '
-               f'{dict(LEVEL_LABEL)[tk["level"]]} at <b>{ours*100:.1f}%</b> vs the market\'s '
-               f'<b>{tk["entry"]*100:.1f}%</b> — a <b>{tk["edge"]*100:+.1f}%</b> gap. It uses real '
-               f'World Football Elo (not the market\'s prices); where they differ, the market is usually sharper.')
-        trs.append(f'<tr class="why"><td colspan=10 class="whyc">{why}'
-                   f'<div class=mini>stake (most you can lose) <b class="neg">${econ["stake"]:.2f}</b>'
-                   f' &nbsp;·&nbsp; max upside <b class="pos">+${econ["max_up"]:.2f}</b></div></td></tr>')
-    book = (f'<table class="trades sortable"><thead><tr>'
-            f'<th data-c=0 class=l>Side</th><th data-c=1 class=l>Team</th><th data-c=2 class=l>Round</th>'
-            f'<th data-c=3 class="l res">Resolves</th><th data-c=4>Market</th><th data-c=5>Model</th>'
-            f'<th data-c=6>Stake</th><th data-c=7>Edge</th><th data-c=8>Max&nbsp;↓</th>'
-            f'<th data-c=9>Max&nbsp;↑</th></tr></thead><tbody>{"".join(trs)}</tbody></table>')
-    # the Elo book's OWN money strip (different positions -> different envelope from the other books)
-    elo_legs = [(tk["shares"], tk["entry"], None) for tk in fbook]
-    elo_pills = f'<span class=pill>deployed <b>${sum(t["stake"] for t in fbook):,.0f}</b></span>'
-    emoney = _book_money(elo_pills, elo_legs)
-    intro = (
+    return (
         f'<p class=note>The <b>informed</b> contender: an <b>independent</b> forecast (not derived from the '
         f'market). The engine simulates the verified bracket on real per-team '
         f'<a href="{WF.ELO_SOURCE_URL}" target=_blank rel="noopener noreferrer">World Football Elo</a> '
@@ -392,23 +366,9 @@ def _fundamental_section(ladder, fundamental, bankroll):
         f'at a plausible ~16% and we don\'t print false-precision 0%/100% for minnows and giants. All '
         f'disclosed priors, <b>not</b> tuned to the market. <b>It can genuinely disagree with the crowd</b> '
         f'— but a public-ratings model is usually <b>less sharp</b> than a liquid market, so a big gap is '
-        f'more likely the model being cruder than the market being wrong. The scorecard adjudicates.</p>'
+        f'more likely the model being cruder than the market being wrong. Its two books (Buy &amp; Hold / '
+        f'Active) sit alongside the zero-knowledge ones below; the scorecard adjudicates.</p>'
         f'<div class=cards>{cards}</div>')
-    book_html = (
-        f'<p class=note>The Elo book — same conviction-weighted, dollar-neutral sizing, edges from the Elo '
-        f'model vs the de-vigged market, <b>net of a ~{WM.HALF_SPREAD*100:.0f}c half-spread</b> (a gap that '
-        f'doesn\'t clear the cost to trade it isn\'t taken). <b>Advance-market bets are deliberately '
-        f'excluded</b> — the crowd reads a team\'s group context better than a single Elo number, so we only '
-        f'act on the knockout rounds (the defensible disagreements). <b>Click a row</b> for the why; '
-        f'<b>a header</b> to sort.</p>'
-        f'<p class=note style="border-left:3px solid var(--elo);padding-left:9px">'
-        f'<b>One bet, wearing many shirts.</b> These positions aren\'t independent — they almost all '
-        f'express the <i>same</i> view (Elo\'s results-based rating vs the market\'s reputation pricing), '
-        f'so the book is closer to a <b>single correlated bet</b> than a diversified one. Don\'t read the '
-        f'spread of rows as breadth: a textbook "edge × √(number of bets)" would badly overstate it.</p>'
-        f'{emoney}'
-        f'<div class=scroll>{book}</div>')
-    return intro, book_html
 
 
 def _outcome_map(fundamental, positions, groups, n_sims=20000):
@@ -473,7 +433,8 @@ def _outcome_map(fundamental, positions, groups, n_sims=20000):
 
 
 def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
-               live_path=LIVE_LEDGER, fundamental=None, positions=None, history=None, liquidity=None):
+               live_path=LIVE_LEDGER, fundamental=None, positions=None, history=None, liquidity=None,
+               elo_core_path=ELO_CORE_LEDGER, elo_live_path=ELO_LIVE_LEDGER):
     ladder = ladder or WM.fetch_ladder()
     history = history or {}                                    # {team_norm: [win-price series]}
     liquidity = liquidity or {}                               # {team_norm: {vol, liq}} (USD)
@@ -559,26 +520,37 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
     # ---- the book table: the TRACKED book marked to live (real PnL) if it exists, else the
     #      freshly-sized PROPOSED book (sizing preview). Every row is click-to-expand for the
     #      per-trade 'why' (methodology) + its max upside / downside.
-    model_lu = {(r["level"], r["team"]): r for r in WM.book(ladder, power=power)}  # ours + edge
-
+    zk_lu = {(r["level"], r["team"]): r for r in WM.book(ladder, power=power)}    # zero-knowledge ours+edge
     slug_of = {lvl: slug for lvl, slug, _s in WM.LADDER}
+    # the informed (Elo) sized book: knockout rounds only (advance excluded), net of the half-spread
+    if fundamental:
+        efrows = [r for r in WF.book_rows(ladder, model=fundamental, cost=WM.HALF_SPREAD)
+                  if r["level"] != "advance"]
+        ebook = sized_book(ladder, bankroll=bankroll, rows=efrows)
+        elo_lu = {(r["level"], r["team"]): r for r in efrows}
+    else:
+        ebook, elo_lu = [], {}
 
-    def _why_row(team, level, side, entry, econ):
-        m = model_lu.get((level, team), {})
+    def _why_row(team, level, side, entry, econ, lu, model):
+        m = lu.get((level, team), {})
         ours = m.get("ours", entry)
         edge = m.get("edge", ours - entry)
         pm = (f' &nbsp;·&nbsp; <a href="https://polymarket.com/event/{slug_of[level]}" target=_blank '
               f'rel="noopener noreferrer">view market on Polymarket ↗</a> '
               f'<span class=sub>(may be restricted in your region)</span>' if level in slug_of else "")
-        return (f'<tr class="why"><td colspan=9 class="whyc">{_rationale(side, team, level, entry, ours, edge)}'
+        return (f'<tr class="why"><td colspan=9 class="whyc">'
+                f'{_rationale(side, team, level, entry, ours, edge, model)}'
                 f'<div class="mini">stake (most you can lose) <b class="neg">${econ["stake"]:.2f}</b>'
                 f' &nbsp;·&nbsp; max upside if it resolves your way <b class="pos">+${econ["max_up"]:.2f}</b>'
                 f' &nbsp;·&nbsp; breakeven at a true probability of <b>{entry*100:.1f}%</b>{pm}</div></td></tr>')
 
-    def _render_book(path, kind):
-        """Build ONE book's table: tracked-and-marked if a ledger exists at `path`, else the
-        freshly-sized PROPOSED book. `kind` ('core'|'live') only changes the explanatory note."""
+    def _render_book(path, kind, pbook, lu, model):
+        """Build ONE book's table — tracked-and-marked if a ledger exists at `path`, else the
+        freshly-sized PROPOSED `pbook`. `kind` ('core'|'live') = hold vs rebalance; `model`
+        ('zk'|'elo') picks which engine's edges and which per-bet rationale."""
         rows, tot = _marked_rows(ladder, path)
+        pref = "Elo · " if model == "elo" else ""
+        held = (kind == "core")
         legs, trs = [], []
         if rows:                                                    # a real, entered book
             for r in rows:
@@ -599,21 +571,22 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
                     f'<td class=res data-s="{li}">{WM.ROUND_RESOLVES.get(r["level"],"—")}</td>'
                     f'<td>{r["entry"]*100:.1f}%</td><td>{cur}</td>{pnl}'
                     f'<td class="neg">{dn}</td><td class="pos">{up}</td></tr>')
-                trs.append(_why_row(r["team"], r["level"], side, r["entry"], econ))
+                trs.append(_why_row(r["team"], r["level"], side, r["entry"], econ, lu, model))
             tt = 'pos' if tot["total"] >= 0 else 'neg'
             trs.append(
                 f'<tr class="tot"><td colspan=6>realized ${tot["realized"]:+.2f} · '
                 f'unrealized ${tot["unrealized"]:+.2f} · {tot["n_open"]}/{tot["n"]} open</td>'
                 f'<td class="{tt}">${tot["total"]:+.2f}</td><td colspan=2 class=sub>↤ click a row</td></tr>')
-            note = ("Buy & Hold — entered once at day 0, held to each market's resolution, marked to today's prices."
-                    if kind == "core" else
-                    "Active Trading — rebalanced each matchday; current open positions marked to today's prices.")
+            note = (f"{pref}{'Buy &amp; Hold' if held else 'Active Trading'} — "
+                    + ("entered once at day 0, held to each market's resolution, marked to today's prices."
+                       if held else
+                       "rebalanced each matchday; current open positions marked to today's prices."))
             cols, pills = ('<th data-c=4>Entry</th><th data-c=5>Now</th><th data-c=6>PnL</th>',
                            f'<span class=pill>realized <b class="{tt}">${tot["realized"]:+.2f}</b></span>'
                            f'<span class=pill>unrealized <b>${tot["unrealized"]:+.2f}</b></span>'
                            f'<span class=pill>total PnL <b class="{tt}">${tot["total"]:+.2f}</b></span>')
         else:                                                       # not entered yet -> proposed sizing
-            for tk in book:
+            for tk in pbook:
                 sc = "pos" if tk["side"] == "LONG" else "neg"
                 econ = _econ(tk["shares"], tk["entry"])
                 legs.append((tk["shares"], tk["entry"], None))
@@ -626,14 +599,16 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
                     f'<td>{tk["entry"]*100:.1f}%</td><td>${tk["stake"]:.0f}</td>'
                     f'<td class="{"pos" if tk["edge"]>0 else "neg"}">{tk["edge"]*100:+.1f}%</td>'
                     f'<td class="neg">${econ["max_down"]:.2f}</td><td class="pos">+${econ["max_up"]:.2f}</td></tr>')
-                trs.append(_why_row(tk["team"], tk["level"], tk["side"], tk["entry"], econ))
-            note = (f"Proposed day-0 book — sized from ${bankroll:,.0f}, stake ∝ |edge|, capped. "
-                    f"Buy & Hold enters this once at kickoff and holds to resolution."
-                    if kind == "core" else
-                    f"Active Trading seeds from the SAME day-0 book, then rebalances each matchday once "
-                    f"results arrive (settle → close at market → redeploy). Identical to Buy & Hold until kickoff.")
+                trs.append(_why_row(tk["team"], tk["level"], tk["side"], tk["entry"], econ, lu, model))
+            note = (f"{pref}{'Buy &amp; Hold' if held else 'Active Trading'} — proposed day-0 book, sized "
+                    f"from ${bankroll:,.0f}, stake ∝ |edge| (capped), net of the half-spread."
+                    + ("" if held else " Seeds from the SAME day-0 book, then rebalances each matchday "
+                       "(settle → close at market → redeploy) — identical until kickoff."))
             cols, pills = ('<th data-c=4>Pay</th><th data-c=5>Stake</th><th data-c=6>Edge</th>',
-                           f'<span class=pill>deployed <b>${sum(t["stake"] for t in book):,.0f}</b></span>')
+                           f'<span class=pill>deployed <b>${sum(t["stake"] for t in pbook):,.0f}</b></span>')
+        if model == "elo":
+            note += (" <b>Knockout rounds only</b> (advance excluded); the rows are largely <i>one</i> "
+                     "correlated 'results-vs-reputation' bet, not diversified breadth.")
         tbl = (f'<p class=note>{note} <b>Click a row</b> for the why; <b>click a header</b> to sort.</p>'
                f'<table class="trades sortable"><thead><tr>'
                f'<th data-c=0 class=l>Side</th><th data-c=1 class=l>Team</th><th data-c=2 class=l>Round</th>'
@@ -642,13 +617,21 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
                f'<tbody>{"".join(trs)}</tbody></table>')
         return dict(html=tbl, legs=legs, pills=pills)
 
-    core = _render_book(core_path, "core")
-    live = _render_book(live_path, "live")
+    # FOUR books = 2 models × {Buy & Hold, Active}, each through the SAME machinery (same columns,
+    # tracked Entry→Now→PnL once stamped). Each gets its OWN money strip (different positions).
+    core = _render_book(core_path, "core", book, zk_lu, "zk")
+    live = _render_book(live_path, "live", book, zk_lu, "zk")
     core_book, live_book = core["html"], live["html"]
-    # each book gets its OWN money strip (deployed + capital-at-risk + max ↑/↓), shown inside its
-    # pane — the three books hold different positions, so a single shared strip would be wrong.
     core_money = _book_money(core["pills"], core["legs"])
     live_money = _book_money(live["pills"], live["legs"])
+    if fundamental:
+        eloc = _render_book(elo_core_path, "core", ebook, elo_lu, "elo")
+        elol = _render_book(elo_live_path, "live", ebook, elo_lu, "elo")
+        eloc_book, elol_book = eloc["html"], elol["html"]
+        eloc_money = _book_money(eloc["pills"], eloc["legs"])
+        elol_money = _book_money(elol["pills"], elol["legs"])
+    else:
+        eloc_book = elol_book = eloc_money = elol_money = ""
 
     # ---- catchy hook: a CURATED set of disagreements (biggest BUY, biggest FADE, biggest ARB)
     #      so the strip tells a varied story rather than three of the same.
@@ -709,15 +692,19 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
     kick = _kickoff_note()
     keydates = _keydates()
 
-    # ---- the INDEPENDENT Elo model (intro+cards shown prominently; book becomes the 3rd tab) ----
-    fund_intro, fund_book = _fundamental_section(ladder, fundamental, bankroll) if fundamental else ("", "")
+    # ---- the INDEPENDENT Elo model (intro+cards shown prominently; its two books become tabs) ----
+    fund_intro = _fundamental_section(ladder, fundamental, bankroll) if fundamental else ""
     elo_intro_section = (
         f'<section id=fundamental><h2>The <span style="color:var(--elo)">informed</span> model '
         f'— Elo ratings vs the market <span class=sub>an independent second opinion</span></h2>'
         f'{fund_intro}</section>' if fundamental else "")
-    elo_tab = ('<button class="tab pulse" id=tb-elo onclick="tab(\'elo\')">🧮 Elo model '
-               '<span class=sub>informed</span></button>' if fundamental else "")
-    elo_pane = f'<div id=pane-elo class=pane hidden>{fund_book}</div>' if fundamental else ""
+    elo_tabs = ('<button class="tab pulse" id=tb-eloc onclick="tab(\'eloc\')">🧮 Elo · Buy &amp; Hold '
+                '<span class=sub>informed, held</span></button>'
+                '<button class="tab pulse" id=tb-elol onclick="tab(\'elol\')">🧮 Elo · Active '
+                '<span class=sub>informed, rebalanced</span></button>') if fundamental else ""
+    elo_panes = (f'<div id=pane-eloc class=pane hidden>{eloc_money}<div class=scroll>{eloc_book}</div></div>'
+                 f'<div id=pane-elol class=pane hidden>{elol_money}<div class=scroll>{elol_book}</div></div>'
+                 ) if fundamental else ""
     outcome_html = (_outcome_map(fundamental, positions, WM.WL.GROUPS_2026)
                     if (fundamental and positions) else "")
     fixtures_html = _fixtures(WM.WL.GROUPS_2026)
@@ -1030,13 +1017,13 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  <div style="margin:0 0 10px"><span class=pill>paper bankroll <b>${bankroll:,.0f}</b></span>
    <span class=hint>👇 each book below shows its <b>own</b> capital at risk &amp; max ↑/↓</span></div>
  <div class=tabs role=tablist>
-   <button class="tab on" id=tb-core onclick="tab('core')">🤝 Buy &amp; Hold <span class=sub>day-0, held</span></button>
-   <button class="tab pulse" id=tb-live onclick="tab('live')">🔄 Active Trading <span class=sub>rebalanced daily</span></button>
-   {elo_tab}
+   <button class="tab on" id=tb-core onclick="tab('core')">🤝 Buy &amp; Hold <span class=sub>zero-knowledge, held</span></button>
+   <button class="tab" id=tb-live onclick="tab('live')">🔄 Active Trading <span class=sub>zero-knowledge, rebalanced</span></button>
+   {elo_tabs}
  </div>
  <div id=pane-core class=pane>{core_money}<div class=scroll>{core_book}</div></div>
  <div id=pane-live class=pane hidden>{live_money}<div class=scroll>{live_book}</div>{timeline}</div>
- {elo_pane}
+ {elo_panes}
  <div class=about><img class=amark src="{mark}" alt="">
    <div><b>About.</b> A solo research &amp; education project by
    <a href="{AUTHOR_URL}" target=_blank rel="noopener noreferrer">{AUTHOR_NAME} ↗</a> — an open test of

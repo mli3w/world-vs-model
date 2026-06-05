@@ -88,24 +88,28 @@ We measure all of this **against the market's own price as the baseline** — sk
 only comparison that matters. Beating a coin flip is meaningless; beating the de-vigged crowd is
 the whole game.
 
-## 5. Sizing & the two books
+## 5. Sizing & the four books (2 models × 2 styles)
 
-A fixed **$1,000 paper bankroll**, **conviction-weighted** (stake ∝ |edge|, capped per trade),
-**dollar-neutral**, concentrated on the ~28 highest-conviction edges. Each ticket holds *signed*
-YES-shares: `unrealized = shares × (price − entry)`, `realized = shares × (outcome − entry)`.
+A fixed **$1,000 paper bankroll** per book, **conviction-weighted** (stake ∝ |edge|, capped per
+trade), **dollar-neutral**, net of the half-spread. Each ticket holds *signed* YES-shares:
+`unrealized = shares × (price − entry)`, `realized = shares × (outcome − entry)`. Every book is
+**frozen at day 0** into the ledger (`ledger/wc_*.jsonl`) and **marked to live**, so each shows real
+running Entry → Now → PnL — not a re-sized proposal.
 
-We run the **same** model two ways so the comparison is honest:
+Two **trading styles**, run identically for *both* models so the comparison is symmetric:
 
-- **Buy & Hold** *(internally `wc-core`)* — entered **once** at day 0, every ticket held to its
-  market's resolution. The clean test of *"was our pre-tournament structural view right?"* PnL
-  settles in waves (advance → QF → SF → final → win).
-- **Active Trading** *(internally `wc-live`)* — rebalanced each matchday: **settle** what resolved,
-  **close** the rest at the current market price, **redeploy** the compounding capital into the
-  freshest edges. The test of *"does acting on the model's updates beat just holding?"* Its
-  matchday changelog is the timeline on the board.
+- **Buy & Hold** *(`wc-core`)* — entered **once** at day 0, every ticket held to its market's
+  resolution. The clean test of *"was the pre-tournament view right?"* PnL settles in waves
+  (advance → QF → SF → final → win).
+- **Active Trading** *(`wc-live`)* — rebalanced each matchday: **settle** what resolved, **close** the
+  rest at the current price, **redeploy** the compounding capital into the freshest edges. The test
+  of *"does acting on the model's updates beat just holding?"* Its matchday changelog is the timeline.
 
-Comparing the two is itself a finding: if Active Trading doesn't beat Buy & Hold net of churn,
-that's evidence the daily updates are noise — and we'd report it.
+Crossed with the two **models** that produce the edges — the **zero-knowledge** structural model and
+the **informed** Elo model (§5b) — that is four books, each its own tab with its own PnL: *Buy & Hold*,
+*Active*, *Elo · Buy & Hold*, *Elo · Active*. Comparing across the grid is itself the finding: if
+Active doesn't beat Buy & Hold net of churn the daily updates are noise; if the Elo books don't beat
+the zero-knowledge ones, football knowledge didn't help — and we'd report either honestly.
 
 ## 5b. The fundamental model (Elo) — an independent second opinion
 

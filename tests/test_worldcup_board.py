@@ -73,7 +73,7 @@ def test_build_html_v2_affordances():
     assert 'class="grp world"' in h and 'class="grp model"' in h   # World vs Model header group
     assert "Polymarket" in h and "Model" in h            # the legend names both sides
     # no tracked ledger in the test env -> the proposed-book path with an Edge column.
-    assert "Proposed day-0 book" in h
+    assert "proposed day-0 book" in h
     assert "matchday timeline" in h                      # wc-live timeline section present
     # the two books are presented as tabs (Buy & Hold vs Active Trading).
     assert "Buy &amp; Hold" in h and "Active Trading" in h and "function tab(" in h
@@ -221,14 +221,15 @@ def test_fundamental_section_renders_with_elo_links_and_caveats():
     assert "eloratings.net" in h and "World_Football_Elo" in h   # Elo source + "what is Elo?" links
     assert "less sharp" in h and "scorecard adjudicates" in h     # the honesty caveat
     assert ("MODEL LOWER" in h or "MODEL HIGHER" in h)       # at least one disagreement card
-    # the Elo model is promoted: a model toggle on the board + a 3rd book tab.
+    # the Elo model is promoted: a board model toggle + its OWN two book tabs (Buy & Hold / Active).
     assert "function setModel(" in h and 'id=mb-elo' in h and "data-elo" in h
-    assert "tab('elo')" in h and "id=pane-elo" in h
+    assert "tab('eloc')" in h and "id=pane-eloc" in h          # Elo · Buy & Hold
+    assert "tab('elol')" in h and "id=pane-elol" in h          # Elo · Active
     # the reset/clear filter control + its JS.
     assert "function clearFind()" in h and "id=clr" in h
-    # without a fundamental ladder, the section + toggle + 3rd tab are absent (data-free callers stay fast).
+    # without a fundamental ladder, the section + toggle + Elo tabs are absent (data-free callers stay fast).
     h0 = B.build_html(ladder=ladder, bankroll=1000.0)
-    assert "id=fundamental" not in h0 and "id=pane-elo" not in h0 and "id=mb-elo" not in h0
+    assert "id=fundamental" not in h0 and "id=pane-eloc" not in h0 and "id=mb-elo" not in h0
 
 
 def test_outcome_map_renders_groups_and_knockout_pyramid():

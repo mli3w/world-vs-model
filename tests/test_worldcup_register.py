@@ -21,6 +21,8 @@ def _paths(tmp):
     R.SCORE = os.path.join(tmp, "scorecard.json")
     R.CORE = os.path.join(tmp, "wc_core.jsonl")
     R.LIVE = os.path.join(tmp, "wc_live.jsonl")
+    R.ELO_CORE = os.path.join(tmp, "wc_elo_core.jsonl")
+    R.ELO_LIVE = os.path.join(tmp, "wc_elo_live.jsonl")
     R.LEDGER = tmp
 
 
@@ -33,7 +35,8 @@ def test_snapshot_registers_both_models_and_freezes_books(tmp_path):
     assert all(p["outcome"] is None and p["provenance"] == "real" for p in preds)
     assert all("market" in p for p in preds)                         # captured market baseline
     assert card["n_total"] == 16 and card["n_resolved"] == 0          # 2 models x 2 levels x 4 teams
-    assert os.path.exists(R.CORE) and os.path.exists(R.LIVE)          # day-0 books frozen
+    assert os.path.exists(R.CORE) and os.path.exists(R.LIVE)          # zero-knowledge books frozen
+    assert os.path.exists(R.ELO_CORE) and os.path.exists(R.ELO_LIVE)  # Elo Buy&Hold + Active frozen
 
 
 def test_snapshot_is_immutable_per_date(tmp_path):
