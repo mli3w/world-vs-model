@@ -175,7 +175,8 @@ def test_kickoff_note_counts_down_then_flips():
 def test_methodology_page_renders_from_markdown():
     h = B.build_methodology_html()
     assert "<!doctype html>" in h and "Methodology" in h
-    assert "Back to the board" in h and "data-theme" in h          # themed, linked back to board
+    assert "← Board" in h and "data-theme" in h                    # themed, linked back to board
+    assert 'href="glossary.html"' in h                             # cross-links to the glossary
     # the substance the page must highlight.
     assert "What we are trying to do" in h
     assert "bounded" in h.lower() and "favorite" in h.lower()      # why bounded markets / the edge
@@ -183,6 +184,16 @@ def test_methodology_page_renders_from_markdown():
     assert "Singapore" in h                                        # the anti-gambling caveat carried over
     assert h.count("<table") == h.count("</table>")                # balanced tables
     assert "**" not in h                                           # no leaked raw markdown bold
+
+
+def test_glossary_page_renders_with_terms_and_references():
+    h = B.build_glossary_html(board_href="index.html")
+    assert "<!doctype html>" in h and "Glossary" in h
+    assert 'href="index.html"' in h and 'href="methodology.html"' in h    # nav cross-links
+    assert "Overround" in h and "Brier score" in h                        # plain-English terms
+    assert "Dixon" in h and "Snowberg" in h                               # verified source papers
+    assert "@@MATH" not in h and h.count("<table") == h.count("</table>")  # clean render
+    assert "**" not in h                                                  # no leaked raw markdown
 
 
 def test_md_inline_handles_nested_emphasis_and_links():

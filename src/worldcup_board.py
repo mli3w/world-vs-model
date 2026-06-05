@@ -763,6 +763,7 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  .tgl{{background:var(--raise);border:1px solid var(--line3);color:var(--ink);border-radius:8px;
    width:32px;height:30px;cursor:pointer;font-size:14px}}
  h1{{font-size:25px;margin:18px 0 4px;letter-spacing:-.3px}} .sub2{{color:var(--ink3);font-size:13px;max-width:760px}}
+ .byline{{margin-top:6px;font-size:12px;color:var(--ink4)}} .byline a{{color:var(--ink3);font-weight:600}}
  h2{{font-size:16px;margin:30px 0 8px;border-bottom:1px solid var(--line2);padding-bottom:5px;scroll-margin-top:60px}}
  table{{border-collapse:collapse;width:100%;font-size:13px}}
  th,td{{padding:5px 8px;text-align:right;border-bottom:1px solid var(--line)}}
@@ -952,7 +953,9 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  <div class=sub2>Two models take on the crowd across all 240 markets: one knows <b>zero football</b>
    (<span style="color:var(--world)">just price structure</span>), one is <b>informed</b>
    (<span style="color:var(--elo)">Elo ratings</span>). Can either beat the market — or is the crowd
-   unbeatable? We keep a public scorecard. <a href="methodology.html">How this works →</a></div>
+   unbeatable? We keep a public scorecard.
+   <a href="methodology.html">How this works →</a> &nbsp;·&nbsp; <a href="glossary.html">Glossary &amp; references →</a></div>
+ <div class=byline>A research experiment by <a href="{AUTHOR_URL}" target=_blank rel="noopener noreferrer">{AUTHOR_NAME} ↗</a></div>
  <div style="margin-top:10px">
    <span class=pill>updated <b>{stamp}</b></span>
    <span class=pill><b>240</b> markets · 48 teams</span>
@@ -1192,6 +1195,8 @@ _ti();
 
 METHODOLOGY_MD = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                               "docs", "methodology-worldcup.md")
+GLOSSARY_MD = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "docs", "glossary-worldcup.md")
 
 
 def _md_inline(s):
@@ -1295,10 +1300,10 @@ def _md_to_html(md):
     return "\n".join(out)
 
 
-def build_methodology_html(md_path=METHODOLOGY_MD, board_href="worldcup_board.html"):
-    """Render the methodology markdown as a themed, standalone, shareable HTML page that matches
-    the board (same brand header + light/dark theme). `board_href` is the back-link target — it must
-    match the board's actual filename (e.g. index.html when hosted), or the link 404s."""
+def _doc_page(md_path, title, brand_suffix, nav_html):
+    """Render one of our markdown docs (methodology / glossary) as a themed, standalone, shareable
+    HTML page matching the board — same brand header, light/dark theme and KaTeX math. `nav_html` is
+    the top-bar link cluster (back to the board + the sibling doc)."""
     with open(md_path, encoding="utf-8") as f:
         protected, _math = _protect_math(f.read())
         body = _restore_math(_md_to_html(protected), _math)
@@ -1306,7 +1311,7 @@ def build_methodology_html(md_path=METHODOLOGY_MD, board_href="worldcup_board.ht
     mark = _brand_mark()
     return f"""<!doctype html><html lang=en><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">
-<title>Methodology · World vs Model — World Cup 2026</title>
+<title>{title}</title>
 <link rel=icon href="{icon}">
 <link rel=preconnect href="https://fonts.googleapis.com"><link rel=preconnect href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel=stylesheet>
@@ -1340,8 +1345,8 @@ def build_methodology_html(md_path=METHODOLOGY_MD, board_href="worldcup_board.ht
  .katex{{font-size:1.02em}}
 </style></head><body>
 <div class=top>
-  <span class=brand><img src="{mark}" alt="World vs Model"> World <span class=vs>vs</span> Model <span class=bt>· Methodology</span></span>
-  <a href="{board_href}">← Back to the board</a>
+  <span class=brand><img src="{mark}" alt="World vs Model"> World <span class=vs>vs</span> Model <span class=bt>· {brand_suffix}</span></span>
+  {nav_html}
   <button class=tgl id=th onclick="tg()" title="Toggle light / dark">☀️</button>
 </div>
 <div class=wrap>{body}</div>
@@ -1353,6 +1358,21 @@ _ti();
 </script>
 {KATEX_JS}
 </body></html>"""
+
+
+def build_methodology_html(md_path=METHODOLOGY_MD, board_href="worldcup_board.html"):
+    """The methodology page. `board_href` must match the board's hosted filename (e.g. index.html)."""
+    nav = (f'<a href="{board_href}">← Board</a>'
+           f'<a href="glossary.html" style="margin-left:14px">Glossary →</a>')
+    return _doc_page(md_path, "Methodology · World vs Model — World Cup 2026", "Methodology", nav)
+
+
+def build_glossary_html(md_path=GLOSSARY_MD, board_href="worldcup_board.html"):
+    """The glossary & references page (plain-English jargon + the source papers)."""
+    nav = (f'<a href="{board_href}">← Board</a>'
+           f'<a href="methodology.html" style="margin-left:14px">Methodology →</a>')
+    return _doc_page(md_path, "Glossary & references · World vs Model — World Cup 2026",
+                     "Glossary &amp; references", nav)
 
 
 def main(argv=None):
@@ -1385,13 +1405,15 @@ def main(argv=None):
         shutil.copyfile(_og_src, os.path.join(os.path.dirname(a.out) or ".", "wvm_og.png"))
     except OSError:
         print("[board] og image not found; skipped wvm_og.png")
-    meth = os.path.join(os.path.dirname(a.out) or ".", "methodology.html")
-    try:
-        with open(meth, "w", encoding="utf-8") as f:
-            f.write(build_methodology_html(board_href=os.path.basename(a.out)))
-        print(f"[board] wrote {meth}")
-    except FileNotFoundError:
-        print("[board] methodology markdown not found; skipped methodology.html")
+    outdir = os.path.dirname(a.out) or "."
+    for fname, builder in (("methodology.html", build_methodology_html),
+                           ("glossary.html", build_glossary_html)):
+        try:
+            with open(os.path.join(outdir, fname), "w", encoding="utf-8") as f:
+                f.write(builder(board_href=os.path.basename(a.out)))
+            print(f"[board] wrote {os.path.join(outdir, fname)}")
+        except FileNotFoundError:
+            print(f"[board] markdown for {fname} not found; skipped")
 
 
 if __name__ == "__main__":
