@@ -321,13 +321,15 @@ def sized_book(ladder, bankroll=1000.0, power=1.15, cap_frac=0.15, top=14, rows=
     return sorted(out, key=lambda t: -t["stake"])
 
 
-def _cell(p, lo=0.0, hi=1.0):
-    """A color-graded probability cell (green = high)."""
+def _cell(p, lo=0.0, hi=1.0, cls=""):
+    """A color-graded probability cell (green = high). `cls` lets the caller tag a column (e.g.
+    'midcol' for the mid-ladder rounds we hide on narrow screens)."""
+    c = f' class="{cls}"' if cls else ""
     if p is None:
-        return '<td class="na" data-s="-1">·</td>'
+        return f'<td class="na {cls}" data-s="-1">·</td>'
     f = max(0.0, min(1.0, (p - lo) / (hi - lo + 1e-9)))
     bg = f"background:rgba(63,217,163,{0.09 + 0.62*f:.2f})"   # teal gradient = the market/world
-    return f'<td style="{bg}">{_pctf(p)}</td>'               # capped display (no false 100%/0%)
+    return f'<td{c} style="{bg}">{_pctf(p)}</td>'            # capped display (no false 100%/0%)
 
 
 def _fundamental_section(ladder, fundamental, bankroll):
@@ -371,7 +373,7 @@ def _fundamental_section(ladder, fundamental, bankroll):
                    f' &nbsp;·&nbsp; max upside <b class="pos">+${econ["max_up"]:.2f}</b></div></td></tr>')
     book = (f'<table class="trades sortable"><thead><tr>'
             f'<th data-c=0 class=l>Side</th><th data-c=1 class=l>Team</th><th data-c=2 class=l>Round</th>'
-            f'<th data-c=3 class=l>Resolves</th><th data-c=4>Market</th><th data-c=5>Model</th>'
+            f'<th data-c=3 class="l res">Resolves</th><th data-c=4>Market</th><th data-c=5>Model</th>'
             f'<th data-c=6>Stake</th><th data-c=7>Edge</th><th data-c=8>Max&nbsp;↓</th>'
             f'<th data-c=9>Max&nbsp;↑</th></tr></thead><tbody>{"".join(trs)}</tbody></table>')
     # the Elo book's OWN money strip (different positions -> different envelope from the other books)
@@ -466,7 +468,8 @@ def _outcome_map(fundamental, positions, groups, n_sims=20000):
         f'<h3>Projected group stage <span class=sub>(advance %)</span></h3>'
         f'<div class=groups>{"".join(gcards)}</div>'
         f'<h3>Projected knockout bracket <span class=sub>— the most-likely team in each round (a model'
-        f' projection, not actual fixtures)</span></h3>{bracket}')
+        f' projection, not actual fixtures)</span></h3>{bracket}'
+        f'<div class=mhint>↔ swipe the bracket sideways to follow the path to the final</div>')
 
 
 def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
@@ -490,7 +493,9 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
     fwin = fundamental.get("win", {}) if fundamental else {}
     rows = []
     for t in teams:
-        cells = "".join(_cell(mkt[lvl].get(t), 0, 1) for lvl, _s, _n in WM.LADDER)
+        cells = "".join(_cell(mkt[lvl].get(t), 0, 1,
+                               cls="midcol" if lvl in ("reach_QF", "reach_SF", "reach_F") else "")
+                         for lvl, _s, _n in WM.LADDER)
         mw, md = mkt["win"].get(t, 0), model_win.get(t, 0)
         edge = md - mw
         ecls = "pos" if edge > 0.003 else ("neg" if edge < -0.003 else "")
@@ -503,7 +508,9 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
             f'<td class="edge {ecls}" data-ze="{edge:.4f}"'
             f'{f" data-ee={de:.4f}" if de is not None else ""}>{edge*100:+.1f}%</td></tr>')
 
-    head = "".join(f'<th data-c={i+1}>{lbl}</th>' for i, (_l, lbl) in enumerate(LEVEL_LABEL))
+    head = "".join(f'<th data-c={i+1}'
+                   f'{" class=midcol" if lv in ("reach_QF", "reach_SF", "reach_F") else ""}>{lbl}</th>'
+                   for i, (lv, lbl) in enumerate(LEVEL_LABEL))
     # two-row header: a group banner makes explicit which columns are the WORLD (Polymarket,
     # de-vigged) and which is the MODEL. Leaf headers carry data-c => click to sort.
     board = (f'<table class="board sortable"><thead>'
@@ -630,7 +637,7 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
         tbl = (f'<p class=note>{note} <b>Click a row</b> for the why; <b>click a header</b> to sort.</p>'
                f'<table class="trades sortable"><thead><tr>'
                f'<th data-c=0 class=l>Side</th><th data-c=1 class=l>Team</th><th data-c=2 class=l>Round</th>'
-               f'<th data-c=3 class=l>Resolves</th>{cols}'
+               f'<th data-c=3 class="l res">Resolves</th>{cols}'
                f'<th data-c=7>Max&nbsp;↓</th><th data-c=8>Max&nbsp;↑</th></tr></thead>'
                f'<tbody>{"".join(trs)}</tbody></table>')
         return dict(html=tbl, legs=legs, pills=pills)
@@ -938,6 +945,24 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  .bchamp img.flag{{margin:0 auto 4px;display:block;width:33px;height:25px}}
  .bchamp .bcn{{font-weight:700;font-size:14px;font-family:'Space Grotesk',Inter,sans-serif}}
  .bchamp .bct{{color:var(--eloink);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px;margin-top:2px}}
+ /* a one-line "swipe" hint, shown only on phones where something still scrolls sideways */
+ .mhint{{display:none;color:var(--ink4);font-size:11px;font-style:italic;margin:3px 2px 0}}
+ /* ---- mobile: NARROW the wide tables (hide non-essential columns) instead of forcing scroll ---- */
+ @media(max-width:600px){{
+   .mhint{{display:block}}
+   /* board: drop the mid-ladder rounds; keep Team · Advance · Win (market/model) · Edge */
+   table.board td.midcol,table.board th.midcol{{display:none}}
+   table.board{{font-size:12px}}
+   table.board td.team,table.board th.team{{position:sticky;left:0;z-index:2;
+     background:var(--bg);box-shadow:1px 0 0 var(--line2)}}
+   .grp.world{{font-size:0}} .grp.world::after{{content:'World (Polymarket)';font-size:11px}}
+   /* books: drop the Resolves column; pin the team name */
+   .trades td.res,.trades th.res{{display:none}}
+   .trades td.team,.trades th.team{{position:sticky;left:0;z-index:2;background:var(--bg)}}
+   /* knockout bracket: shrink so there's far less sideways scroll */
+   .bracket,.blabels{{min-width:600px}}
+   .bn{{padding:3px;gap:3px}} .bn img.flag{{width:15px;height:11px}} .bn .bc{{font-size:9px}}
+ }}
 </style></head><body>
 <div class=top>
   <span class=brand><img src="{mark}" alt="World vs Model"> World <span class=vs>vs</span> Model <span class=bt>· World Cup 2026</span></span>
@@ -983,6 +1008,7 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
    <button class=rst onclick="resetSort()" title="Reset table sorting">↺ reset sort</button></div>
  {model_toggle}
  <div class=scroll>{board}</div>
+ <div class=mhint>↔ swipe the table sideways · the QF/SF/final columns are hidden on small screens (tap a team for its full route)</div>
  <div class=grid>
   <div><h2>The market's hidden vig</h2>
    <p class=note>Add up every team's price in a round and it sums to <i>more</i> than the real number of
