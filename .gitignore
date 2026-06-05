@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+# the board is generated (and deployed straight to Pages from the build artifact)
+outputs/
+worldcup_board.html
+methodology.html
+# brand assets ARE tracked (the board embeds wvm_mark at build time)
+!assets/*.png

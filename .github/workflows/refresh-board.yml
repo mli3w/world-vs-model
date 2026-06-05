@@ -1,0 +1,59 @@
+name: Refresh board
+
+# Regenerates the static board from live Polymarket data and deploys it to GitHub Pages.
+# Pre-tournament this runs a few times a day (prices drift slowly); during the group stage
+# (from ~2026-06-11) tighten the cron — e.g. '0 */2 * * *' — since matchdays move the board a lot.
+#
+# Live results: the Elo forecast re-forecasts when ledger/wc_results.json is present. That file is
+# updated by hand (commit played match scores as {a,b,ga,gb,stage}); the next run folds them in.
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'      # every 6 hours
+  workflow_dispatch: {}          # manual "Run workflow" button
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# never let two deploys race
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Build the board (live Polymarket data)
+        run: python src/worldcup_board.py --out outputs/index.html
+
+      - name: Data guard — refuse to deploy an empty board
+        run: |
+          rows=$(grep -o 'data-team=' outputs/index.html | wc -l)
+          echo "board team-row occurrences: $rows"
+          if [ "$rows" -lt 48 ]; then
+            echo "::error::Board has only $rows team rows (<48) — the data fetch likely failed; not deploying."
+            exit 1
+          fi
+          test -f outputs/methodology.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: outputs
+
+      - id: deploy
+        uses: actions/deploy-pages@v4
