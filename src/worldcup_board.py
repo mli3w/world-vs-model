@@ -35,6 +35,12 @@ LIVE_LEDGER = os.path.join("ledger", "wc_live.jsonl")     # the recycled book (m
 SCORECARD = os.path.join("ledger", "scorecard.json")      # the public, resolved-out-of-sample record
 RESULTS_PATH = os.path.join("ledger", "wc_results.json")  # played matches -> live Elo re-forecast
 
+# the live site (GitHub Pages). Used for ABSOLUTE og:image / og:url — social scrapers (LinkedIn in
+# particular) won't resolve a relative image, so the share card needs the full URL.
+SITE_URL = "https://mli3w.github.io/world-vs-model"
+AUTHOR_NAME = "Marcus Liew"
+AUTHOR_URL = "https://www.linkedin.com/in/marcusliewjy/"
+
 
 def load_results(path=RESULTS_PATH):
     """Played-match results for the live re-forecast, or None if the file is absent (pre-tournament).
@@ -140,6 +146,17 @@ def _book_risk(legs):
             e = _econ(shares, entry)
             best += e["max_up"]; worst += e["max_down"]; stake += e["stake"]
     return dict(stake=round(stake, 2), best=round(best, 2), worst=round(worst, 2))
+
+
+def _book_money(pills, legs):
+    """A per-book money strip: the book's own deployed/PnL pills PLUS its capital-at-risk and the
+    LOOSE max ↑/↓ envelope. Each of the three books holds different positions, so each gets its
+    own strip inside its pane (a single shared strip would wrongly imply identical risk)."""
+    r = _book_risk(legs)
+    return (f'<div class=riskrow>{pills}'
+            f'<span class=pill>capital at risk <b>${r["stake"]:,.0f}</b></span>'
+            f'<span class=pill>book max ↑ <b class="pos">+${r["best"]:,.0f}</b></span>'
+            f'<span class=pill>book max ↓ <b class="neg">${r["worst"]:+,.0f}</b></span></div>')
 
 
 def _marked_rows(ladder, path):
@@ -357,6 +374,10 @@ def _fundamental_section(ladder, fundamental, bankroll):
             f'<th data-c=3 class=l>Resolves</th><th data-c=4>Market</th><th data-c=5>Model</th>'
             f'<th data-c=6>Stake</th><th data-c=7>Edge</th><th data-c=8>Max&nbsp;↓</th>'
             f'<th data-c=9>Max&nbsp;↑</th></tr></thead><tbody>{"".join(trs)}</tbody></table>')
+    # the Elo book's OWN money strip (different positions -> different envelope from the other books)
+    elo_legs = [(tk["shares"], tk["entry"], None) for tk in fbook]
+    elo_pills = f'<span class=pill>deployed <b>${sum(t["stake"] for t in fbook):,.0f}</b></span>'
+    emoney = _book_money(elo_pills, elo_legs)
     intro = (
         f'<p class=note>The <b>informed</b> contender: an <b>independent</b> forecast (not derived from the '
         f'market). The engine simulates the verified bracket on real per-team '
@@ -383,6 +404,7 @@ def _fundamental_section(ladder, fundamental, bankroll):
         f'express the <i>same</i> view (Elo\'s results-based rating vs the market\'s reputation pricing), '
         f'so the book is closer to a <b>single correlated bet</b> than a diversified one. Don\'t read the '
         f'spread of rows as breadth: a textbook "edge × √(number of bets)" would badly overstate it.</p>'
+        f'{emoney}'
         f'<div class=scroll>{book}</div>')
     return intro, book_html
 
@@ -615,13 +637,11 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
 
     core = _render_book(core_path, "core")
     live = _render_book(live_path, "live")
-    core_book, live_book, pnl_pills = core["html"], live["html"], core["pills"]
-
-    # book-level risk envelope (capital at risk + the LOOSE best/worst bound) — on the main page.
-    risk = _book_risk(core["legs"])
-    risk_pills = (f'<span class=pill>capital at risk <b>${risk["stake"]:,.0f}</b></span>'
-                  f'<span class=pill>book max ↑ <b class="pos">+${risk["best"]:,.0f}</b></span>'
-                  f'<span class=pill>book max ↓ <b class="neg">${risk["worst"]:+,.0f}</b></span>')
+    core_book, live_book = core["html"], live["html"]
+    # each book gets its OWN money strip (deployed + capital-at-risk + max ↑/↓), shown inside its
+    # pane — the three books hold different positions, so a single shared strip would be wrong.
+    core_money = _book_money(core["pills"], core["legs"])
+    live_money = _book_money(live["pills"], live["legs"])
 
     # ---- catchy hook: a CURATED set of disagreements (biggest BUY, biggest FADE, biggest ARB)
     #      so the strip tells a varied story rather than three of the same.
@@ -706,10 +726,11 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
 <meta property="og:title" content="World vs Model · World Cup 2026">
 <meta property="og:description" content="{desc}">
 <meta property="og:type" content="website">
-<meta property="og:image" content="wvm_og.png">
+<meta property="og:url" content="{SITE_URL}/">
+<meta property="og:image" content="{SITE_URL}/wvm_og.png">
 <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="wvm_og.png">
+<meta name="twitter:image" content="{SITE_URL}/wvm_og.png">
 <link rel=icon href="{icon}">
 <link rel=preconnect href="https://fonts.googleapis.com"><link rel=preconnect href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel=stylesheet>
@@ -762,6 +783,12 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  .dot{{display:inline-block;width:9px;height:9px;border-radius:2px;margin:0 4px 0 10px;vertical-align:middle}}
  .pill{{display:inline-block;background:var(--raise);border:1px solid var(--line2);border-radius:14px;
    padding:3px 10px;margin:3px 4px 3px 0;font-size:12px;color:var(--ink2)}} .pill b{{color:var(--ink)}}
+ .riskrow{{margin:0 0 10px}}
+ .about{{display:flex;gap:13px;align-items:center;margin-top:24px;padding:13px 16px;background:var(--panel);
+   border:1px solid var(--line2);border-radius:12px;color:var(--ink2);font-size:13px;line-height:1.55}}
+ .about b{{color:var(--ink)}} .about a{{color:var(--model)}} .about a:hover{{text-decoration:underline}}
+ .amark{{width:44px;height:44px;border-radius:11px;flex:0 0 auto}}
+ @media(max-width:560px){{.about{{flex-direction:column;align-items:flex-start}}}}
  .disc{{color:var(--ink4);font-size:12px;margin-top:22px;border-top:1px solid var(--line2);padding-top:12px}}
  a{{color:var(--model)}}
  .grid{{display:grid;grid-template-columns:1fr 1fr;gap:24px}} @media(max-width:760px){{.grid{{grid-template-columns:1fr}}}}
@@ -971,19 +998,22 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
    <b>net of a ~{half_spread_c:.0f}c half-spread</b> — a gap that doesn't clear the cost to trade it is
    sized to zero. <b>Buy &amp; Hold</b> enters once at day 0 and holds to resolution; <b>Active Trading</b>
    rebalances each matchday. <a href="methodology.html">Methodology →</a></p>
- <div style="margin:0 0 8px">
-   <span class=pill>paper bankroll <b>${bankroll:,.0f}</b></span>
-   {pnl_pills}
-   {risk_pills}
- </div>
+ <div style="margin:0 0 10px"><span class=pill>paper bankroll <b>${bankroll:,.0f}</b></span>
+   <span class=hint>👇 each book below shows its <b>own</b> capital at risk &amp; max ↑/↓</span></div>
  <div class=tabs role=tablist>
    <button class="tab on" id=tb-core onclick="tab('core')">🤝 Buy &amp; Hold <span class=sub>day-0, held</span></button>
    <button class="tab pulse" id=tb-live onclick="tab('live')">🔄 Active Trading <span class=sub>rebalanced daily</span></button>
    {elo_tab}
  </div>
- <div id=pane-core class=pane><div class=scroll>{core_book}</div></div>
- <div id=pane-live class=pane hidden><div class=scroll>{live_book}</div>{timeline}</div>
+ <div id=pane-core class=pane>{core_money}<div class=scroll>{core_book}</div></div>
+ <div id=pane-live class=pane hidden>{live_money}<div class=scroll>{live_book}</div>{timeline}</div>
  {elo_pane}
+ <div class=about><img class=amark src="{mark}" alt="">
+   <div><b>About.</b> A solo research &amp; education project by
+   <a href="{AUTHOR_URL}" target=_blank rel="noopener noreferrer">{AUTHOR_NAME} ↗</a> — an open test of
+   whether transparent models can beat a liquid market, with an honest public scorecard. Built in the
+   open, scored against the crowd; <b>no positions, no capital, no advice</b>.
+   <a href="https://github.com/mli3w/world-vs-model" target=_blank rel="noopener noreferrer">Source &amp; method on GitHub ↗</a></div></div>
  <div class=disc>⚠️ <b>A research &amp; education experiment — NOT gambling, and NOT an encouragement
    to gamble.</b> We hold <b>no positions</b> and invest <b>no real capital</b>; every figure here is a
    paper simulation of market <i>structure</i>, not investment returns or a tipping service. This is
