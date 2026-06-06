@@ -9,7 +9,7 @@ name: Refresh board
 
 on:
   schedule:
-    - cron: '0 */6 * * *'      # every 6 hours
+    - cron: '0 */3 * * *'      # every 3 hours (tighter for matchdays; prices move fast)
   push:
     branches: [main]            # redeploy on every source change
   workflow_dispatch: {}          # manual "Run workflow" button
