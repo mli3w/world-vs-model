@@ -25,6 +25,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import worldcup_markets as WM       # noqa: E402
 import worldcup_positions as WP     # noqa: E402
 import worldcup_fundamental as WF   # noqa: E402  (the independent Elo model)
+import wc_bracket as WB             # noqa: E402  (FIFA's official 2026 knockout slot table)
 import consistency as C             # noqa: E402
 
 LEVEL_LABEL = [("advance", "Advance"), ("reach_QF", "Reach QF"), ("reach_SF", "Reach SF"),
@@ -378,9 +379,11 @@ def _outcome_map(fundamental, positions, groups, n_sims=20000):
     nz = WM.WL._norm
     adv = fundamental.get("advance", {})
     gcards = []
+    ranked_by_group = {}
     for g, teams in groups.items():
         ranked = sorted(teams, key=lambda t: sum(i * p for i, p in enumerate(
             positions.get(nz(t), [0, 0, 0, 1]))))          # by expected finishing position
+        ranked_by_group[g] = ranked
         trs = []
         for i, t in enumerate(ranked):
             cls = "q" if i < 2 else ("m" if i == 2 else "o")
@@ -389,52 +392,50 @@ def _outcome_map(fundamental, positions, groups, n_sims=20000):
         gcards.append(f'<div class=gcard><div class=gh>Group {g}</div>'
                       f'<table class=gt><tbody>{"".join(trs)}</tbody></table></div>')
 
-    # ---- the knockout BRACKET: a CONSISTENT converging tree. Each team is assigned to one half,
-    #      its 8 likeliest-to-reach-the-R16 are SEEDED (strongest kept apart), and each later round
-    #      is the projected WINNER of the pair below it — so a team advances up ONE path and never
-    #      appears as the same matchup twice (the old version picked top-k per round independently,
-    #      which made strong teams look like they met repeatedly). ----
+    # ---- the knockout BRACKET: the REAL, OFFICIAL 2026 fixtures. The model's projected group
+    #      standings are poured into FIFA's published slot table (src/wc_bracket.py: the 16 fixed
+    #      Round-of-32 matches #73-88 + the 495-row best-third contingency), then the stronger side
+    #      advances each round. So the *structure* is the actual R32 -> R16 -> QF -> SF -> Final; only
+    #      the *placement* is the model's projection. No matchup is invented. ----
     win = fundamental.get("win", {})
-    order = sorted(win, key=lambda n: -win.get(n, 0))          # all teams by title prob
-    side = {n: ("L" if i % 2 == 0 else "R") for i, n in enumerate(order)}  # fixed bracket half
-    SEED8 = [0, 7, 3, 4, 1, 6, 2, 5]                           # standard 8-seed order (1v8, 4v5, ...)
-    LV = ("reach_R16", "reach_QF", "reach_SF", "reach_F")
+    adv_p = fundamental.get("advance", {})
+    r16_p = fundamental.get("reach_R16", {})
 
-    def _node(n, level):
-        p = fundamental.get(level, {}).get(n, 0)
-        return (f'<div class=bn title="{html.escape(_name(n))} · {p*100:.0f}% to reach this round">'
-                f'{WM.flag_img(n)}<span class=bc>{WM.code(n)}</span></div>')
+    def _strength(team):                                       # model strength, ties broken finely
+        n = nz(team)
+        return (win.get(n, 0.0), adv_p.get(n, 0.0), r16_p.get(n, 0.0))
 
-    def _half_rounds(sk):
-        """[R16(8), QF(4), SF(2), F(1)] for half `sk`: the 8 likeliest to reach the R16, seeded by
-        title prob, then the stronger of each pair advances each round (a real single-path bracket)."""
-        r16 = fundamental.get("reach_R16", {})
-        pool = sorted((n for n in r16 if side.get(n) == sk), key=lambda n: -r16.get(n, 0))[:8]
-        pool.sort(key=lambda n: -win.get(n, 0))                # strongest first, then spread by seed
-        cur = [pool[i] for i in SEED8] if len(pool) == 8 else pool
-        rounds = [cur]
-        for _ in range(3):                                     # QF, SF, F = stronger of each pair
-            cur = [a if win.get(a, 0) >= win.get(b, 0) else b for a, b in zip(cur[0::2], cur[1::2])]
-            rounds.append(cur)
-        return rounds
+    br = WB.resolve(ranked_by_group, _strength)
+    rounds = br["rounds"]                                      # [R32(32), R16(16), QF(8), SF(4), F(2), champ(1)]
+    LV = ("advance", "reach_R16", "reach_QF", "reach_SF", "reach_F")  # tooltip prob per round column
+
+    def _node(team, level):
+        if not team:
+            return '<div class="bn bne">&mdash;</div>'
+        p = fundamental.get(level, {}).get(nz(team), 0)
+        return (f'<div class=bn title="{html.escape(_name(team))} · {p*100:.0f}% to reach this round">'
+                f'{WM.flag_img(team)}<span class=bc>{WM.code(team)}</span></div>')
 
     def _col(teams, level):
-        return f'<div class=bcol>{"".join(_node(n, level) for n in teams)}</div>'
+        return f'<div class=bcol>{"".join(_node(t, level) for t in teams)}</div>'
 
-    Lr, Rr = _half_rounds("L"), _half_rounds("R")
-    finalists = [r[3][0] for r in (Lr, Rr) if r[3]]
-    champ = max(finalists, key=lambda n: win.get(n, 0)) if finalists else None
+    def _half(level, sk):                                      # left half = top of the column, right = bottom
+        col = rounds[level]
+        h = len(col) // 2
+        return col[:h] if sk == "L" else col[h:]
+
+    champ = br["champ"]
     champ_node = (f'<div class=bchamp>{WM.flag_img(champ, "40x30")}'
                   f'<div class=bcn>{html.escape(_name(champ))}</div>'
-                  f'<div class=bct>🏆 champion · {win[champ]*100:.0f}%</div></div>' if champ else "")
+                  f'<div class=bct>🏆 champion · {win.get(nz(champ), 0)*100:.0f}%</div></div>' if champ else "")
     bracket = (
         '<div class=bwrap><div class=blabels>'
         + "".join(f'<span>{x}</span>' for x in
-                  ["R16", "QF", "SF", "Final", "Champion", "Final", "SF", "QF", "R16"]) + '</div>'
+                  ["R32", "R16", "QF", "SF", "Final", "Champion", "Final", "SF", "QF", "R16", "R32"]) + '</div>'
         '<div class=bracket>'
-        + "".join(_col(Lr[i], LV[i]) for i in range(4))
+        + "".join(_col(_half(i, "L"), LV[i]) for i in range(5))
         + f'<div class="bcol bmid">{champ_node}</div>'
-        + "".join(_col(Rr[i], LV[i]) for i in range(3, -1, -1))
+        + "".join(_col(_half(i, "R"), LV[i]) for i in range(4, -1, -1))
         + '</div></div>')
     return (
         f'<h2 id=outcome>Most likely outcome '
@@ -445,8 +446,8 @@ def _outcome_map(fundamental, positions, groups, n_sims=20000):
         f'<span class=md></span> 3rd may sneak through as a best-third.</p>'
         f'<h3>Projected group stage <span class=sub>(advance %)</span></h3>'
         f'<div class=groups>{"".join(gcards)}</div>'
-        f'<h3>Projected knockout bracket <span class=sub>— the most-likely team in each round (a model'
-        f' projection, not actual fixtures)</span></h3>{bracket}'
+        f'<h3>Projected knockout bracket <span class=sub>— the model\'s projected standings poured into'
+        f' FIFA\'s official Round-of-32 slots (real fixtures, model placement)</span></h3>{bracket}'
         f'<div class=mhint>↔ swipe the bracket sideways to follow the path to the final</div>')
 
 
@@ -937,14 +938,15 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  .qd,.md{{display:inline-block;width:8px;height:8px;border-radius:2px;vertical-align:middle;margin:0 2px}}
  .qd{{background:var(--world)}} .md{{background:#d9a441}}
  .bwrap{{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:6px 0}}
- .blabels{{display:flex;min-width:880px;margin-bottom:5px}}
+ .blabels{{display:flex;min-width:1120px;margin-bottom:5px}}
  .blabels span{{flex:1;text-align:center;color:var(--ink3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px}}
- .bracket{{display:flex;min-width:880px;align-items:stretch}}
+ .bracket{{display:flex;min-width:1120px;align-items:stretch}}
  .bcol{{flex:1;display:flex;flex-direction:column;justify-content:space-around;gap:5px;padding:0 3px}}
  .bcol.bmid{{flex:1.25;justify-content:center}}
  .bn{{display:flex;align-items:center;justify-content:center;gap:5px;background:var(--panel);
    border:1px solid var(--line2);border-radius:7px;padding:4px 5px;white-space:nowrap}}
  .bn .bc{{font-weight:700;color:var(--ink2);font-size:11px;letter-spacing:.3px}}
+ .bn.bne{{opacity:.35;color:var(--ink3)}}
  .bn img.flag{{margin:0}}
  .bchamp{{background:var(--elowash);border:1.5px solid var(--elo);border-radius:12px;padding:10px 8px;text-align:center}}
  .bchamp img.flag{{margin:0 auto 4px;display:block;width:33px;height:25px}}
@@ -965,7 +967,7 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
    .trades td.res,.trades th.res{{display:none}}
    .trades td.team,.trades th.team{{position:sticky;left:0;z-index:2;background:var(--bg)}}
    /* knockout bracket: shrink so there's far less sideways scroll */
-   .bracket,.blabels{{min-width:600px}}
+   .bracket,.blabels{{min-width:760px}}
    .bn{{padding:3px;gap:3px}} .bn img.flag{{width:15px;height:11px}} .bn .bc{{font-size:9px}}
  }}
 </style></head><body>

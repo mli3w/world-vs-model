@@ -202,9 +202,13 @@ We are deliberately loud about the limitations — the credibility is in the cav
   resolve progressively while we treat them statically; some levels (reach-final) carry huge vig
   (live overrounds run advance ≈ 0%, reach-SF ≈ +17%, reach-final ≈ +30%), so any "edge" on the
   thin middle rungs is the least real. (The Elo forecast itself now **re-forecasts live** — see below.)
-- **The bracket is a balanced approximation, not the official draw.** We seed winners apart and
-  avoid same-group R32 rematches, but we do **not** reproduce the exact 2026 slot table (the
-  best-third placement contingencies), so a team's precise path difficulty is approximate.
+- **The displayed bracket is the official 2026 slot table; the probability engine still seeds a
+  balanced bracket.** The *Most-likely-outcome* projection pours the model's group standings into
+  FIFA's published Round-of-32 slots (`src/wc_bracket.py`: the 16 fixed R32 fixtures + the full
+  495-row best-third contingency table), so the matchups you see are the real fixtures, not a guess.
+  The Monte-Carlo *probabilities* (win %, reach %) are still computed over a **balanced seeded**
+  bracket that avoids same-group R32 rematches — so a team's precise path difficulty in the numbers
+  remains an approximation, even though the rendered path is now exact.
 - **The goals model has no team-specific attack/defence.** It is a Dixon–Coles-corrected Poisson
   (a realistic ~27% draw rate), but scoring rates come only from the Elo gap — not from a team's
   actual goals-for/against, so a heavy-scoring or defensive side isn't individually captured.
@@ -222,8 +226,10 @@ We are deliberately loud about the limitations — the credibility is in the cav
 - **Live re-forecasting is wired** — played results Elo-update the ratings and completed group
   games are held fixed, so the Elo forecast moves with the tournament (it reads
   `ledger/wc_results.json`; pre-tournament, with no results, it is the day-0 forecast). The
-  **Dixon–Coles** goals correction is also in. The remaining bracket gap is the **exact official
-  slot table** (incl. best-third contingencies); we currently use a balanced seeded approximation.
+  **Dixon–Coles** goals correction is also in. The **displayed** projection now uses the **exact
+  official slot table** (incl. best-third contingencies, `src/wc_bracket.py`); the remaining gap is
+  to drive the Monte-Carlo *probabilities* through those same official slots (today they run over a
+  balanced seeded bracket).
 - **Stack more decorrelated zero-knowledge signals** (calibration, no-arb, round-clustering) to
   lift breadth (IR ≈ IC·√K).
 - **Covariance-aware risk** (RMT-denoised or hierarchical risk parity) instead of naive dollar-
@@ -315,9 +321,12 @@ $$R' = \bar{R} + \kappa\,(R - \bar{R}), \qquad \kappa_{\text{group}} = 1.0,\quad
 group and knockout ratings), integrating over our uncertainty about true strength — so a favorite
 reads \(\sim 99\%\), not a false 100%, to advance.
 
-**Bracket.** Qualifiers are seeded into a balanced bracket (winners take the protected top seeds, then
-runners-up, then best-thirds, by rating within each tier), so winners are kept apart and same-group
-teams don't meet in the Round of 32 — a structural approximation, not the exact official slot table.
+**Bracket.** The *Monte-Carlo* qualifiers are seeded into a balanced bracket (winners take the protected
+top seeds, then runners-up, then best-thirds, by rating within each tier), so winners are kept apart and
+same-group teams don't meet in the Round of 32 — a structural approximation for the *probabilities*. The
+*Most-likely-outcome* projection shown on the board is separate and **exact**: it pours the model's group
+standings into FIFA's official Round-of-32 slot table and the full 495-row best-third contingency
+(`src/wc_bracket.py`), so the rendered fixtures are the real ones.
 
 **Monte-Carlo reach probabilities.** Over \(N = 20{,}000\) sims, \(P(\text{level}) = \text{count}/N\). The
 **Monte-Carlo** error — how precisely the sim estimates its *own* answer — is
