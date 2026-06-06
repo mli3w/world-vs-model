@@ -44,6 +44,11 @@ SITE_URL = "https://mli3w.github.io/world-vs-model"
 AUTHOR_NAME = "Marcus Liew"
 AUTHOR_URL = "https://www.linkedin.com/in/marcusliewjy/"
 
+# Optional fan-poll backend (Cloudflare Worker, see poll-worker/). When set, the board renders a
+# bottom-left "Who wins?" bubble that reads/writes the live tally; when empty, the bubble is omitted
+# so nothing half-built ships. Set via env (WVM_POLL_ENDPOINT) or paste the workers.dev URL here.
+POLL_ENDPOINT = os.environ.get("WVM_POLL_ENDPOINT", "").strip().rstrip("/")
+
 
 def load_results(path=RESULTS_PATH):
     """Played-match results for the live re-forecast, or None if the file is absent (pre-tournament).
@@ -453,6 +458,126 @@ def _outcome_map(fundamental, positions, groups, n_sims=20000):
         f'<div class=mhint>↔ swipe the bracket sideways to follow the path to the final</div>')
 
 
+def _poll_widget(endpoint):
+    """Bottom-left 'Who wins the World Cup?' fan-poll bubble. Renders only when a Cloudflare-Worker
+    endpoint is configured (see poll-worker/). Reuses the page's WVM team data to overlay the crowd
+    vote against the model and the market. Non-binding, not betting; cookieless, one soft vote/IP."""
+    if not endpoint:
+        return ""
+    blob = r'''
+<style>
+ #wvp{position:fixed;left:16px;bottom:16px;z-index:30;font-family:inherit}
+ .wvp-pill{display:flex;align-items:center;gap:6px;border:1px solid var(--line2);background:var(--panel);
+   color:var(--ink);border-radius:22px;padding:9px 14px;font-size:13px;cursor:pointer;box-shadow:0 6px 22px rgba(0,0,0,.28)}
+ .wvp-pill:hover{transform:translateY(-1px)} .wvp-pill span{color:var(--ink3)}
+ .wvp-card{position:fixed;left:16px;bottom:16px;width:320px;max-width:calc(100vw - 32px);background:var(--panel);
+   border:1px solid var(--line2);border-radius:14px;padding:13px 14px;box-shadow:0 14px 40px rgba(0,0,0,.4)}
+ .wvp-hd{display:flex;justify-content:space-between;align-items:center;font-size:14px;margin-bottom:3px}
+ .wvp-x{background:none;border:none;color:var(--ink3);font-size:18px;cursor:pointer;line-height:1}
+ .wvp-sub{font-size:11px;color:var(--ink3);margin-bottom:10px;line-height:1.4}
+ .wvp-quick{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+ .wvp-q{display:flex;align-items:center;gap:5px;border:1px solid var(--line2);background:var(--bg);color:var(--ink);
+   border-radius:8px;padding:5px 8px;font-size:12px;cursor:pointer}
+ .wvp-q.sel{border-color:var(--model);background:var(--panel2)}
+ .wvp-q img{width:18px;height:13px;border-radius:2px}
+ .wvp-sel{width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line2);border-radius:8px;
+   padding:7px 8px;font-size:12px;margin-bottom:8px}
+ .wvp-row{display:flex;gap:8px;align-items:center}
+ .wvp-vote{flex:1;background:var(--model);color:#fff;border:none;border-radius:8px;padding:8px;font-size:13px;
+   font-weight:700;cursor:pointer;opacity:.5;pointer-events:none}
+ .wvp-vote.on{opacity:1;pointer-events:auto} .wvp-link{background:none;border:none;color:var(--ink3);
+   font-size:12px;cursor:pointer;text-decoration:underline}
+ .wvp-res{margin-top:4px}
+ .wvp-bar{display:flex;align-items:center;gap:7px;margin:6px 0;font-size:12px}
+ .wvp-bar img{width:18px;height:13px;border-radius:2px;flex:none}
+ .wvp-bc{font-weight:700;width:34px;flex:none;color:var(--ink2)}
+ .wvp-track{flex:1;height:16px;background:var(--bg);border:1px solid var(--line);border-radius:5px;position:relative;overflow:hidden}
+ .wvp-fill{height:100%;background:#f0bf49;border-radius:4px}
+ .wvp-tick{position:absolute;top:-2px;width:2px;height:20px}
+ .wvp-pc{width:34px;flex:none;text-align:right;font-weight:700;color:#f0bf49}
+ .wvp-foot{font-size:10.5px;color:var(--ink3);margin-top:9px;display:flex;justify-content:space-between;align-items:center}
+ .wvp-foot a{color:var(--ink3)} .wvp-key{font-size:10px;color:var(--ink3);margin:2px 0 0}
+ .wvp-key b{font-weight:700}
+ @media(max-width:600px){.wvp-card{width:calc(100vw - 32px)}}
+</style>
+<div id="wvp">
+ <button class="wvp-pill" id="wvp-pill">&#128499;&#65039; <b>Who wins?</b> <span>vote</span></button>
+ <div class="wvp-card" id="wvp-card" hidden>
+  <div class="wvp-hd"><b>Who wins the World Cup 2026?</b><button class="wvp-x" id="wvp-x" aria-label="close">&times;</button></div>
+  <div class="wvp-sub">A non-binding fan poll &mdash; not betting. See how the crowd lines up against the model and the market.</div>
+  <div id="wvp-pick">
+   <div class="wvp-quick" id="wvp-quick"></div>
+   <select class="wvp-sel" id="wvp-sel"><option value="">&mdash; or pick any of the 48 &mdash;</option></select>
+   <div class="wvp-row"><button class="wvp-vote" id="wvp-vote">Vote</button><button class="wvp-link" id="wvp-see">results &rarr;</button></div>
+  </div>
+  <div class="wvp-res" id="wvp-res" hidden></div>
+  <div class="wvp-foot"><span id="wvp-total"></span><a href="methodology.html">how this works</a></div>
+ </div>
+</div>
+<script>
+(function(){
+ var EP="__ENDPOINT__"; if(!EP) return;
+ var T=(window.WVM||[]).map(function(t){return {d:t.d,c:t.c,iso:t.iso,mk:t.mk||0,mdl:(t.elo!=null?t.elo:t.zk)||0};});
+ if(!T.length) return;
+ var META={}; T.forEach(function(t){META[t.d]=t;});
+ var byMkt=T.slice().sort(function(a,b){return b.mk-a.mk;});
+ var $=function(id){return document.getElementById(id);};
+ var pill=$("wvp-pill"),card=$("wvp-card"),pick=$("wvp-pick"),res=$("wvp-res"),sel=$("wvp-sel"),voteB=$("wvp-vote");
+ var chosen=null, voted=null;
+ try{voted=localStorage.getItem("wvm-vote-2026");}catch(e){}
+ function flag(iso){return "https://flagcdn.com/20x15/"+iso+".png";}
+ byMkt.slice(0,6).forEach(function(t){
+  var b=document.createElement("button"); b.className="wvp-q";
+  b.innerHTML='<img src="'+flag(t.iso)+'" alt=""> '+t.c;
+  b.onclick=function(){choose(t.d);}; b.setAttribute("data-d",t.d); $("wvp-quick").appendChild(b);
+ });
+ byMkt.forEach(function(t){var o=document.createElement("option");o.value=t.d;o.textContent=t.d;sel.appendChild(o);});
+ sel.onchange=function(){choose(sel.value);};
+ function choose(d){
+  chosen=d||null;
+  document.querySelectorAll(".wvp-q").forEach(function(q){q.classList.toggle("sel",q.getAttribute("data-d")===d);});
+  if(sel.value!==(d||"")) sel.value=d||"";
+  voteB.classList.toggle("on",!!chosen);
+ }
+ function show(el,on){el.hidden=!on;}
+ function open(){show(card,true);show(pill,false); if(voted){load(true);} }
+ function close(){show(card,false);show(pill,true);}
+ pill.onclick=open; $("wvp-x").onclick=close; $("wvp-see").onclick=function(){load(true);};
+ voteB.onclick=function(){ if(!chosen) return; voteB.classList.remove("on"); voteB.textContent="Voting...";
+  fetch(EP+"/vote",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({team:chosen})})
+   .then(function(r){return r.json();}).then(function(d){
+     try{localStorage.setItem("wvm-vote-2026",chosen);}catch(e){} voted=chosen; render(d);
+   }).catch(function(){voteB.textContent="Vote";voteB.classList.add("on");res.hidden=false;res.innerHTML='<div class="wvp-key">Could not reach the poll &mdash; try again later.</div>';});
+ };
+ function load(force){ fetch(EP+"/results").then(function(r){return r.json();}).then(render)
+   .catch(function(){show(res,true);res.innerHTML='<div class="wvp-key">Could not load results yet.</div>';}); }
+ function render(d){
+  show(pick,false); show(res,true);
+  var counts=d.counts||{}, total=d.total||0;
+  var rows=Object.keys(counts).map(function(k){
+    var m=META[k]||{c:k.slice(0,3).toUpperCase(),iso:"",mk:0,mdl:0};
+    return {d:k, share:(total?counts[k]/total*100:0), mdl:m.mdl||0, mk:m.mk||0, c:m.c, iso:m.iso};
+  }).sort(function(a,b){return b.share-a.share;}).slice(0,8);
+  // crowd share, model win% and market win% are all "P(this team wins)" — put them on one axis
+  var scaleMax=5; rows.forEach(function(r){scaleMax=Math.max(scaleMax,r.share,r.mdl,r.mk);});
+  var sc=function(v){return Math.max(0,Math.min(100,v/scaleMax*100));};
+  var html=rows.map(function(r){
+    return '<div class="wvp-bar"><img src="'+flag(r.iso)+'" alt=""><span class="wvp-bc">'+r.c+'</span>'+
+      '<span class="wvp-track"><span class="wvp-fill" style="width:'+sc(r.share)+'%"></span>'+
+      '<span class="wvp-tick" style="left:'+sc(r.mdl)+'%;background:var(--model)" title="model '+Math.round(r.mdl)+'%"></span>'+
+      '<span class="wvp-tick" style="left:'+sc(r.mk)+'%;background:var(--world)" title="market '+Math.round(r.mk)+'%"></span>'+
+      '</span><span class="wvp-pc">'+Math.round(r.share)+'%</span></div>';
+  }).join("") || '<div class="wvp-key">No votes yet &mdash; be the first.</div>';
+  res.innerHTML=html+'<div class="wvp-key">All three are <b>P(wins the cup)</b>: <b style="color:#f0bf49">&#9632; crowd</b> <b style="color:var(--model)">&#9632; model</b> <b style="color:var(--world)">&#9632; market</b></div>';
+  $("wvp-total").textContent=(total||0)+" vote"+(total===1?"":"s")+(voted?" · you picked "+voted:"");
+ }
+ if(voted){ /* returning voter: pill still shows; results load on open */ }
+})();
+</script>
+'''
+    return blob.replace("__ENDPOINT__", endpoint)
+
+
 def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
                live_path=LIVE_LEDGER, fundamental=None, positions=None, history=None, liquidity=None,
                elo_core_path=ELO_CORE_LEDGER, elo_live_path=ELO_LIVE_LEDGER):
@@ -732,6 +857,7 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
     outcome_html = (_outcome_map(fundamental, positions, WM.WL.GROUPS_2026)
                     if (fundamental and positions) else "")
     fixtures_html = _fixtures(WM.WL.GROUPS_2026)
+    poll_widget = _poll_widget(POLL_ENDPOINT)                 # bottom-left fan poll (only if configured)
 
     icon = BRAND_ICON                                         # crisp tiny favicon
     mark = _brand_mark()                                      # the Canva emblem (brand + hero)
@@ -1232,6 +1358,7 @@ function tg(){{var h=document.documentElement;var n=h.getAttribute('data-theme')
   h.setAttribute('data-theme',n);try{{localStorage.setItem('cm-theme',n);}}catch(e){{}}_ti();}}
 _ti();
 </script>
+{poll_widget}
 </body></html>"""
 
 

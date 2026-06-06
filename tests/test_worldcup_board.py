@@ -13,6 +13,14 @@ LADDER = {"advance": {}, "reach_QF": {}, "reach_SF": {}, "reach_F": {},
           "win": {"fav": 0.40, "strong": 0.25, "mid": 0.12, "weak": 0.04, "dog": 0.01}}
 
 
+def test_poll_widget_is_opt_in():
+    assert B._poll_widget("") == ""                              # no endpoint -> nothing renders
+    w = B._poll_widget("https://wvm-poll.example.workers.dev/")
+    assert "wvp-pill" in w                                       # the bubble is present
+    assert "https://wvm-poll.example.workers.dev" in w          # endpoint injected
+    assert "not betting" in w                                    # disclaimer carried
+
+
 def test_sized_book_is_bounded_and_two_sided():
     bk = B.sized_book(LADDER, bankroll=1000.0, top=3, cost=0.0)   # pure sizing (no cost netting)
     total = sum(t["stake"] for t in bk)
