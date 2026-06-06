@@ -37,6 +37,11 @@ market settles or a fresh edge clears the cost buffer — any day, not only matc
 conviction-weighted, dollar-neutral, net of a half-spread, and frozen at day 0 into the ledger so it
 shows real running Entry → Now → PnL (no real money; a simulation of structure).
 
+And there is a third voice: a **fan poll** ("Who wins the World Cup 2026?") in the bottom-left bubble
+lets visitors add the **crowd** to the picture, plotted on the same *P(wins the cup)* axis as the
+model and the market. It is non-binding and not betting; votes are tallied by a tiny, cookieless
+[Cloudflare Worker](poll-worker/) (opt-in — the bubble only appears when its endpoint is configured).
+
 ## Run it locally
 
 ```bash
