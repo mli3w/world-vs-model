@@ -74,7 +74,7 @@ def test_build_html_v2_affordances():
     assert "Polymarket" in h and "Model" in h            # the legend names both sides
     # no tracked ledger in the test env -> the proposed-book path with an Edge column.
     assert "proposed day-0 book" in h
-    assert "matchday timeline" in h                      # wc-live timeline section present
+    assert "rebalance timeline" in h                     # wc-live timeline section present
     # the two books are presented as tabs (Buy & Hold vs Active Trading).
     assert "Buy &amp; Hold" in h and "Active Trading" in h and "function tab(" in h
 

@@ -41,7 +41,7 @@ Everything here is **research & education** — not financial advice, not a tipp
 | **Dollar-neutral** | Equal money long and short, so it's a bet on *relative* mispricing, not on the market rising or falling. |
 | **Mark-to-market (MTM)** | Re-pricing open positions at the current market to show running profit/loss. |
 | **Capital at risk · max ↑ · max ↓** | The money deployed, and the loose best/worst-case envelope of that book. |
-| **Buy & Hold vs Active Trading** | Enter once and hold to the end, versus rebalance each matchday as results land. |
+| **Buy & Hold vs Active Trading** | Enter once and hold to the end, versus re-evaluated daily — rebalancing whenever a market settles or a fresh edge clears the cost buffer (any day, not only matchdays). |
 
 ## Scoring & honesty
 

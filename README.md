@@ -32,7 +32,8 @@ links the source papers. In short: de-vig → favorite–longshot correction (ze
 Poisson + Monte-Carlo over the bracket (informed).
 
 To put a number on the disagreements there are **four paper books** = 2 models × 2 styles —
-**Buy & Hold** (entered once, held) and **Active Trading** (rebalanced each matchday) — each
+**Buy & Hold** (entered once, held) and **Active Trading** (re-evaluated daily; rebalances when a
+market settles or a fresh edge clears the cost buffer — any day, not only matchdays) — each
 conviction-weighted, dollar-neutral, net of a half-spread, and frozen at day 0 into the ledger so it
 shows real running Entry → Now → PnL (no real money; a simulation of structure).
 

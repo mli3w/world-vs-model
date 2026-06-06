@@ -101,9 +101,13 @@ Two **trading styles**, run identically for *both* models so the comparison is s
 - **Buy & Hold** *(`wc-core`)* — entered **once** at day 0, every ticket held to its market's
   resolution. The clean test of *"was the pre-tournament view right?"* PnL settles in waves
   (advance → QF → SF → final → win).
-- **Active Trading** *(`wc-live`)* — rebalanced each matchday: **settle** what resolved, **close** the
-  rest at the current price, **redeploy** the compounding capital into the freshest edges. The test
-  of *"does acting on the model's updates beat just holding?"* Its matchday changelog is the timeline.
+- **Active Trading** *(`wc-live`)* — **re-evaluated daily**, not just on matchdays. The board refreshes
+  every ~3 hours, and the book rebalances whenever a trigger clears the bar: **settle** what resolved,
+  **close** the rest at the current price, **redeploy** the compounding capital into the freshest edges.
+  A trigger is a market settling *or* a fresh edge that clears the **cost buffer** (the half-spread) —
+  the cleanest case being a **riskless inconsistency**, which can open on a quiet, no-match day. We scan
+  daily but only trade on a buffer-clearing edge, so we don't churn the spread on noise. The test of
+  *"does acting on the model's updates beat just holding?"* Its changelog is the rebalance timeline.
 
 Crossed with the two **models** that produce the edges — the **zero-knowledge** structural model and
 the **informed** Elo model (§5b) — that is four books, each its own tab with its own PnL: *Buy & Hold*,
@@ -172,8 +176,8 @@ not a market consensus.
 We are deliberately loud about the limitations — the credibility is in the caveats.
 
 **What's missing / weak today**
-- **Costs & capacity.** Polymarket spreads are wide and depth is thin; our `capacity.py` analysis
-  puts the break-even capacity near **\$0** — the spread alone can exceed the gross daily edge. We
+- **Costs & capacity.** Polymarket spreads are wide and depth is thin; the break-even capacity is
+  near **\$0** — the spread alone can exceed the gross daily edge. We
   now **net a flat ~1¢ half-spread off every book edge** (sub-spread gaps are sized to zero), so the
   paper books are no longer purely gross. This is still a *flat* approximation — real per-market
   spreads vary and a full slippage/impact model isn't wired in — but it removes the worst of the
@@ -219,7 +223,8 @@ We are deliberately loud about the limitations — the credibility is in the cav
   there, so the **win-level** disagreements (results-vs-reputation) are the more defensible story.
 
 **How we'd improve it**
-- **Fit the bias from settled outcomes** (`bounded.py::fit_recalibration`) per round, and
+- **Fit the bias from settled outcomes** per round (recalibrate the de-vig power from the realized
+  ledger as markets resolve), and
   **weight by time-to-resolution** (IC rises as τ→0).
 - **Per-market, dynamic costs** — we now net a *flat* half-spread; next is real per-market spread +
   depth/impact and capacity gating, so sizing respects each market's true liquidity.
@@ -351,9 +356,9 @@ $$\text{Brier} = \frac{1}{n}\sum_i (p_i - o_i)^2, \qquad
 |---|---|
 | De-vig / favorite–longshot / no-arb detectors | `src/consistency.py` |
 | Full nested ladder + per-level overround + arb scan | `src/worldcup_markets.py` |
+| Informed Elo model (Elo + Poisson + Dixon–Coles Monte Carlo) | `src/worldcup_fundamental.py`, `src/worldcup_sim.py` |
+| Official FIFA 2026 knockout slot table + projected bracket | `src/wc_bracket.py` |
 | Paper positions, mark-to-live, resolve PnL | `src/worldcup_positions.py` |
-| Conviction-weighted sizing + the HTML board | `src/worldcup_board.py` |
-| Two books — Buy & Hold vs Active Trading | `src/worldcup_books.py` |
-| Bounded-market calibration / time-to-resolution signals | `src/bounded.py` |
-| Cost / capacity analysis | `src/capacity.py` |
-| Pre-registered, timestamped hypothesis | `docs/preregistration-worldcup.md` |
+| Conviction-weighted sizing + the four books + the HTML board | `src/worldcup_board.py` |
+| Pre-registered predictions, frozen books, the scorecard | `src/worldcup_register.py`, `ledger/` |
+| Record a played result → live re-forecast | `src/feed_result.py` |

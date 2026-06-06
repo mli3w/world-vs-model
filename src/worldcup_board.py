@@ -601,7 +601,8 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
             note = (f"{pref}{'Buy &amp; Hold' if held else 'Active Trading'} — "
                     + ("entered once at day 0, held to each market's resolution, marked to today's prices."
                        if held else
-                       "rebalanced each matchday; current open positions marked to today's prices."))
+                       "re-evaluated daily; rebalances when a market settles or a fresh edge clears the "
+                       "cost buffer — any day, not only matchdays. Open positions marked to today's prices."))
             cols, pills = ('<th data-c=4>Entry</th><th data-c=5>Now</th><th data-c=6>PnL</th>',
                            f'<span class=pill>realized <b class="{tt}">${tot["realized"]:+.2f}</b></span>'
                            f'<span class=pill>unrealized <b>${tot["unrealized"]:+.2f}</b></span>'
@@ -623,8 +624,9 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
                 trs.append(_why_row(tk["team"], tk["level"], tk["side"], tk["entry"], econ, lu, model))
             note = (f"{pref}{'Buy &amp; Hold' if held else 'Active Trading'} — proposed day-0 book, sized "
                     f"from ${bankroll:,.0f}, stake ∝ |edge| (capped), net of the half-spread."
-                    + ("" if held else " Seeds from the SAME day-0 book, then rebalances each matchday "
-                       "(settle → close at market → redeploy) — identical until kickoff."))
+                    + ("" if held else " Seeds from the SAME day-0 book, then re-evaluated daily — it "
+                       "rebalances when a market settles or a new edge clears the cost buffer (any day, "
+                       "settle → close at market → redeploy), so it tracks Buy &amp; Hold until the first trigger."))
             cols, pills = ('<th data-c=4>Pay</th><th data-c=5>Stake</th><th data-c=6>Edge</th>',
                            f'<span class=pill>deployed <b>${sum(t["stake"] for t in pbook):,.0f}</b></span>')
         if model == "elo":
@@ -692,14 +694,15 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
             f'<tr><td class="team">{s["date"]}</td><td>{s["opened"]}</td><td>{s["settled"]}</td>'
             f'<td class="{"pos" if s["realized"]>=0 else "neg"}">${s["realized"]:+.2f}</td>'
             f'<td>${s["cum"]:+.2f}</td></tr>' for s in tl)
-        timeline = (f'<h2>wc-live — matchday timeline <span class=sub>(settle · close @ market · redeploy)</span></h2>'
+        timeline = (f'<h2>wc-live — rebalance timeline <span class=sub>(settle · close @ market · redeploy)</span></h2>'
                     f'<table class="tl"><thead><tr><th class=team>Date</th><th>Opened</th>'
                     f'<th>Settled</th><th>Step PnL</th><th>Cumulative</th></tr></thead>'
                     f'<tbody>{tlr}</tbody></table>')
     else:
-        timeline = ('<h2>wc-live — matchday timeline</h2><p class=note>No matchday updates yet. '
-                    'As groups and knockouts resolve, each step (settle resolved markets → close the '
-                    'rest at the current price → redeploy compounding capital) appears here.</p>')
+        timeline = ('<h2>wc-live — rebalance timeline</h2><p class=note>No rebalances yet. The book is '
+                    're-checked daily; each step (settle resolved markets → close the rest at the current '
+                    'price → redeploy compounding capital) appears here whenever a settle or a fresh '
+                    'edge over the cost buffer triggers one — any day, not only matchdays.</p>')
 
     arbs = ("".join(f"<li><b>{_disp(t)}</b>: "
                     f"priced to {dp} ({dpp}) more than to {sh} ({sp}) — impossible.</li>"
@@ -722,7 +725,7 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
     elo_tabs = ('<button class="tab pulse" id=tb-eloc onclick="tab(\'eloc\')">🧮 Elo · Buy &amp; Hold '
                 '<span class=sub>informed, held</span></button>'
                 '<button class="tab pulse" id=tb-elol onclick="tab(\'elol\')">🧮 Elo · Active '
-                '<span class=sub>informed, rebalanced</span></button>') if fundamental else ""
+                '<span class=sub>informed, daily</span></button>') if fundamental else ""
     elo_panes = (f'<div id=pane-eloc class=pane hidden>{eloc_money}<div class=scroll>{eloc_book}</div></div>'
                  f'<div id=pane-elol class=pane hidden>{elol_money}<div class=scroll>{elol_book}</div></div>'
                  ) if fundamental else ""
@@ -1026,7 +1029,9 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
      before comparing anyone to the crowd.</p>
    <table class="vig sortable"><thead><tr><th class="team l" data-c=0>Round</th><th data-c=1>Sums to</th><th data-c=2>Slots</th><th data-c=3>Overround</th></tr></thead>
    <tbody>{vig}</tbody></table></div>
-  <div><h2>Riskless inconsistencies</h2><ul>{arbs}</ul></div>
+  <div><h2>Riskless inconsistencies <span class=sub>— checked daily; tradeable any day</span></h2>
+   <p class=note>Where the ladder's own prices break nesting (a team priced likelier to go far than to
+     go less far) — a risk-free edge that can open on a quiet day, not just a matchday.</p><ul>{arbs}</ul></div>
  </div>
  {outcome_html}
  {fixtures_html}
@@ -1034,13 +1039,15 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  <p class=note><b>A secondary, "what-if" view</b> — purely to put a number on the disagreements above.
    No real money: a $1,000 <i>paper</i> book, conviction-weighted and dollar-neutral. Edges are shown
    <b>net of a ~{half_spread_c:.0f}c half-spread</b> — a gap that doesn't clear the cost to trade it is
-   sized to zero. <b>Buy &amp; Hold</b> enters once at day 0 and holds to resolution; <b>Active Trading</b>
-   rebalances each matchday. <a href="methodology.html">Methodology →</a></p>
+   sized to zero (that half-spread is the <b>cost buffer</b>). <b>Buy &amp; Hold</b> enters once at day 0
+   and holds to resolution; <b>Active Trading</b> is re-evaluated daily and rebalances whenever a market
+   settles or a fresh edge clears that buffer — any day, not only matchdays (a riskless inconsistency is
+   the clearest example). <a href="methodology.html">Methodology →</a></p>
  <div style="margin:0 0 10px"><span class=pill>paper bankroll <b>${bankroll:,.0f}</b></span>
    <span class=hint>👇 each book below shows its <b>own</b> capital at risk &amp; max ↑/↓</span></div>
  <div class=tabs role=tablist>
    <button class="tab on" id=tb-core onclick="tab('core')">🤝 Buy &amp; Hold <span class=sub>zero-knowledge, held</span></button>
-   <button class="tab" id=tb-live onclick="tab('live')">🔄 Active Trading <span class=sub>zero-knowledge, rebalanced</span></button>
+   <button class="tab" id=tb-live onclick="tab('live')">🔄 Active Trading <span class=sub>zero-knowledge, daily</span></button>
    {elo_tabs}
  </div>
  <div id=pane-core class=pane>{core_money}<div class=scroll>{core_book}</div></div>

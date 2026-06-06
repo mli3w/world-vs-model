@@ -282,7 +282,7 @@ def continent_check(win_prices, session=None):
 
 
 # A flat per-trade cost (half the bid-ask) for netting displayed edges. Polymarket spreads are wide
-# and depth thin (capacity.py: break-even ~ $0), so a gross edge below the spread is not real. ~1
+# and depth thin (break-even capacity ~ $0), so a gross edge below the spread is not real. ~1
 # cent is a typical tick. Disclosed, conservative; estimators stay GROSS — netting is a display knob.
 HALF_SPREAD = 0.01
 
