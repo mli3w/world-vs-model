@@ -2,3 +2,4 @@ numpy>=1.24
 pandas>=2.0
 requests>=2.31
 pytest>=7.4
+pillow>=10.0   # only for src/make_chart.py (the shareable social chart); the board itself doesn't need it
