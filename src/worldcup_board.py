@@ -242,12 +242,12 @@ def _kickoff_note(today=None):
     return '<b>Tournament underway</b> · markets resolving' if days < 0 else '<b>Kicks off today</b>'
 
 
-# the fan/punter calendar — when each stage happens (2026 schedule). The first is kickoff; the rest
-# reuse the per-round resolution dates (when that round's markets settle).
-KEY_DATES = [("Jun 11", "Kickoff", "group stage begins"),
-             ("Jun 27", "Last 32 set", "groups decided"),
-             ("Jul 7", "Quarter-finals", "last 8"),
-             ("Jul 11", "Semi-finals", "last 4"),
+# the fan/punter calendar — the official 2026 start date of each stage (group stage Jun 11–27,
+# R32 Jun 28–Jul 3, R16 Jul 4–7, QF Jul 9–11, SF Jul 14–15, final Jul 19).
+KEY_DATES = [("Jun 11", "Group stage", "tournament opens"),
+             ("Jun 28", "Round of 32", "knockouts begin"),
+             ("Jul 9", "Quarter-finals", "last 8"),
+             ("Jul 14", "Semi-finals", "last 4"),
              ("Jul 19", "Final", "champion crowned")]
 
 
@@ -266,7 +266,9 @@ def _keydates(today=None):
 FIFA_SCHEDULE_URL = ("https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/"
                      "scores-fixtures")
 # a valid 4-team round-robin rotation (each team plays once per matchday) -> the three matchdays
-_RR_MATCHDAYS = [[(0, 3), (1, 2)], [(0, 2), (3, 1)], [(0, 1), (2, 3)]]
+# FIFA's official group matchday template (0-indexed slots): MD1 1v2 & 3v4, MD2 1v3 & 4v2,
+# MD3 4v1 & 2v3 (per the FIFA "Schedule by group", e.g. the opener Mexico(A1) v South Africa(A2)).
+_RR_MATCHDAYS = [[(0, 1), (2, 3)], [(0, 2), (3, 1)], [(3, 0), (1, 2)]]
 
 
 def _fixtures(groups):

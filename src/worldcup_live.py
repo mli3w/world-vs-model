@@ -10,8 +10,10 @@ As matches are played, feed scores to the Tournament (worldcup_sim): Elo ratings
 group rank tables update and forecast() re-simulates only the unplayed matches, so both
 the probabilities and the substitution structure refresh live.
 
-NOTE: GROUPS_2026 below is the official Final Draw (5 Dec 2025), verified against the
-Wikipedia "2026 FIFA World Cup draw" group tables (team sets match exactly).
+NOTE: GROUPS_2026 below is the official Final Draw (5 Dec 2025). Both the team SETS and the
+within-group POSITION ORDER (slot 1/2/3/4) are verified against the per-group FIFA/Wikipedia
+standings tables ("2026 FIFA World Cup Group A".."L"); the position order drives the fixture
+schedule, so it must be the official draw slot, not just the right four teams.
 """
 import unicodedata
 
@@ -20,14 +22,14 @@ import pandas as pd
 
 import worldcup_sim as W
 
-# 12 groups of 4 — 2026 Final Draw (verified vs Wikipedia 2026 FIFA World Cup draw).
+# 12 groups of 4 — 2026 Final Draw, in official slot order (position 1/2/3/4 per FIFA).
 GROUPS_2026 = {
-    "A": ["Mexico", "South Korea", "South Africa", "Czechia"],
-    "B": ["Canada", "Switzerland", "Qatar", "Bosnia-Herzegovina"],
+    "A": ["Mexico", "South Africa", "South Korea", "Czechia"],
+    "B": ["Canada", "Bosnia-Herzegovina", "Qatar", "Switzerland"],
     "C": ["Brazil", "Morocco", "Haiti", "Scotland"],
-    "D": ["USA", "Paraguay", "Türkiye", "Australia"],
-    "E": ["Germany", "Ivory Coast", "Ecuador", "Curaçao"],
-    "F": ["Netherlands", "Sweden", "Tunisia", "Japan"],
+    "D": ["USA", "Paraguay", "Australia", "Türkiye"],
+    "E": ["Germany", "Curaçao", "Ivory Coast", "Ecuador"],
+    "F": ["Netherlands", "Japan", "Sweden", "Tunisia"],
     "G": ["Belgium", "Egypt", "Iran", "New Zealand"],
     "H": ["Spain", "Cape Verde", "Saudi Arabia", "Uruguay"],
     "I": ["France", "Senegal", "Iraq", "Norway"],
