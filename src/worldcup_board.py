@@ -526,7 +526,7 @@ def _poll_widget(endpoint):
  var chosen=null, voted=null;
  try{voted=localStorage.getItem("wvm-vote-2026");}catch(e){}
  function flag(iso){return "https://flagcdn.com/20x15/"+iso+".png";}
- byMkt.slice(0,6).forEach(function(t){
+ byMkt.slice(0,7).forEach(function(t){
   var b=document.createElement("button"); b.className="wvp-q";
   b.innerHTML='<img src="'+flag(t.iso)+'" alt=""> '+t.c;
   b.onclick=function(){choose(t.d);}; b.setAttribute("data-d",t.d); $("wvp-quick").appendChild(b);
