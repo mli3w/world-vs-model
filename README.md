@@ -1,5 +1,7 @@
 # World vs Model · World Cup 2026
 
+### 🔴 Live: **[mli3w.github.io/world-vs-model](https://mli3w.github.io/world-vs-model/)**
+
 **Can a model beat the betting market?** This is a public, research-and-education experiment that
 pits two transparent models against the crowd across all ~240 Polymarket World Cup 2026 markets, and
 keeps a falsifiable, out-of-sample scorecard.
@@ -23,17 +25,22 @@ is the receipts, not a tip.
 
 ## How it works
 
-The full methodology, with the formulas, lives in
+The full methodology with the formulas lives in
 [`docs/methodology-worldcup.md`](docs/methodology-worldcup.md) (rendered on the site's *Methodology*
-page). In short: de-vig → favorite–longshot correction (zero-knowledge) and Elo + Poisson +
-Monte-Carlo over the bracket (informed), then a conviction-weighted, dollar-neutral *paper* book —
-net of a half-spread — purely to put a number on the disagreements.
+page); a plain-English [*Glossary & references*](docs/glossary-worldcup.md) explains the jargon and
+links the source papers. In short: de-vig → favorite–longshot correction (zero-knowledge) and Elo +
+Poisson + Monte-Carlo over the bracket (informed).
+
+To put a number on the disagreements there are **four paper books** = 2 models × 2 styles —
+**Buy & Hold** (entered once, held) and **Active Trading** (rebalanced each matchday) — each
+conviction-weighted, dollar-neutral, net of a half-spread, and frozen at day 0 into the ledger so it
+shows real running Entry → Now → PnL (no real money; a simulation of structure).
 
 ## Run it locally
 
 ```bash
 pip install -r requirements.txt
-python src/worldcup_board.py --out outputs/index.html   # writes index.html + methodology.html
+python src/worldcup_board.py --out outputs/index.html   # writes index.html + methodology.html + glossary.html
 ```
 
 Open `outputs/index.html` in a browser. The board fetches live prices from Polymarket's public Gamma
@@ -42,6 +49,15 @@ and CLOB APIs; if they're unreachable it degrades gracefully (no sparklines/liqu
 ```bash
 python -m pytest -q     # the model + board test suite
 ```
+
+### The track record (pre-registration)
+
+`python src/worldcup_register.py snapshot` stamps **both models' forecasts + the captured market
+baseline** for every team into `ledger/predictions.jsonl` (timestamped, falsifiable, scored
+out-of-sample by Brier + skill-vs-market) and freezes the four day-0 books. It is **append-only and
+immutable** — a stamp is never edited. The board reads the resulting `ledger/scorecard.json` for its
+public track-record strip. The daily rebuild marks the frozen stamp to live; it does **not**
+re-register.
 
 ## Live updates
 
