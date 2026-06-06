@@ -389,23 +389,41 @@ def _outcome_map(fundamental, positions, groups, n_sims=20000):
         gcards.append(f'<div class=gcard><div class=gh>Group {g}</div>'
                       f'<table class=gt><tbody>{"".join(trs)}</tbody></table></div>')
 
-    # ---- the knockout BRACKET: a converging tree. Each team is assigned to ONE half (so a team
-    #      never appears on both sides), then each round shows the top teams FROM EACH half. ----
+    # ---- the knockout BRACKET: a CONSISTENT converging tree. Each team is assigned to one half,
+    #      its 8 likeliest-to-reach-the-R16 are SEEDED (strongest kept apart), and each later round
+    #      is the projected WINNER of the pair below it — so a team advances up ONE path and never
+    #      appears as the same matchup twice (the old version picked top-k per round independently,
+    #      which made strong teams look like they met repeatedly). ----
     win = fundamental.get("win", {})
-    champ = max(win, key=win.get) if win else None
     order = sorted(win, key=lambda n: -win.get(n, 0))          # all teams by title prob
     side = {n: ("L" if i % 2 == 0 else "R") for i, n in enumerate(order)}  # fixed bracket half
+    SEED8 = [0, 7, 3, 4, 1, 6, 2, 5]                           # standard 8-seed order (1v8, 4v5, ...)
+    LV = ("reach_R16", "reach_QF", "reach_SF", "reach_F")
 
     def _node(n, level):
         p = fundamental.get(level, {}).get(n, 0)
         return (f'<div class=bn title="{html.escape(_name(n))} · {p*100:.0f}% to reach this round">'
                 f'{WM.flag_img(n)}<span class=bc>{WM.code(n)}</span></div>')
 
-    def col(level, sk, k):                                     # top-k teams of half `sk` at `level`
-        d = fundamental.get(level, {})
-        top = sorted((n for n in d if side.get(n) == sk), key=lambda n: -d.get(n, 0))[:k]
-        return f'<div class=bcol>{"".join(_node(n, level) for n in top)}</div>'
+    def _half_rounds(sk):
+        """[R16(8), QF(4), SF(2), F(1)] for half `sk`: the 8 likeliest to reach the R16, seeded by
+        title prob, then the stronger of each pair advances each round (a real single-path bracket)."""
+        r16 = fundamental.get("reach_R16", {})
+        pool = sorted((n for n in r16 if side.get(n) == sk), key=lambda n: -r16.get(n, 0))[:8]
+        pool.sort(key=lambda n: -win.get(n, 0))                # strongest first, then spread by seed
+        cur = [pool[i] for i in SEED8] if len(pool) == 8 else pool
+        rounds = [cur]
+        for _ in range(3):                                     # QF, SF, F = stronger of each pair
+            cur = [a if win.get(a, 0) >= win.get(b, 0) else b for a, b in zip(cur[0::2], cur[1::2])]
+            rounds.append(cur)
+        return rounds
 
+    def _col(teams, level):
+        return f'<div class=bcol>{"".join(_node(n, level) for n in teams)}</div>'
+
+    Lr, Rr = _half_rounds("L"), _half_rounds("R")
+    finalists = [r[3][0] for r in (Lr, Rr) if r[3]]
+    champ = max(finalists, key=lambda n: win.get(n, 0)) if finalists else None
     champ_node = (f'<div class=bchamp>{WM.flag_img(champ, "40x30")}'
                   f'<div class=bcn>{html.escape(_name(champ))}</div>'
                   f'<div class=bct>🏆 champion · {win[champ]*100:.0f}%</div></div>' if champ else "")
@@ -414,10 +432,10 @@ def _outcome_map(fundamental, positions, groups, n_sims=20000):
         + "".join(f'<span>{x}</span>' for x in
                   ["R16", "QF", "SF", "Final", "Champion", "Final", "SF", "QF", "R16"]) + '</div>'
         '<div class=bracket>'
-        f'{col("reach_R16","L",8)}{col("reach_QF","L",4)}{col("reach_SF","L",2)}{col("reach_F","L",1)}'
-        f'<div class="bcol bmid">{champ_node}</div>'
-        f'{col("reach_F","R",1)}{col("reach_SF","R",2)}{col("reach_QF","R",4)}{col("reach_R16","R",8)}'
-        '</div></div>')
+        + "".join(_col(Lr[i], LV[i]) for i in range(4))
+        + f'<div class="bcol bmid">{champ_node}</div>'
+        + "".join(_col(Rr[i], LV[i]) for i in range(3, -1, -1))
+        + '</div></div>')
     return (
         f'<h2 id=outcome>Most likely outcome '
         f'<span class=sub>— the <span class=eloc>informed</span> model\'s projection</span></h2>'
