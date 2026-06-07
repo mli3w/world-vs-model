@@ -822,8 +822,9 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
             note = (f"{pref}{'Buy &amp; Hold' if held else 'Active Trading'} — proposed day-0 book, sized "
                     f"from ${bankroll:,.0f}, stake ∝ |edge| (capped), net of the half-spread."
                     + ("" if held else " Seeds from the SAME day-0 book, then re-evaluated daily — it "
-                       "rebalances when a market settles or a new edge clears the cost buffer (any day, "
-                       "settle → close at market → redeploy), so it tracks Buy &amp; Hold until the first trigger."))
+                       "<b>cuts</b> a leg the model turns against, <b>rotates</b> into a clearly bigger "
+                       "edge, and otherwise <b>rides winners to settlement</b> — so it tracks Buy &amp; "
+                       "Hold until the first trigger."))
             cols, pills = ('<th data-c=4>Pay</th><th data-c=5>Stake</th><th data-c=6>Edge</th>',
                            f'<span class=pill>deployed <b>${sum(t["stake"] for t in pbook):,.0f}</b></span>')
         if model == "elo":
@@ -897,9 +898,9 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
                     f'<tbody>{tlr}</tbody></table>')
     else:
         timeline = ('<h2>wc-live — rebalance timeline</h2><p class=note>No rebalances yet. The book is '
-                    're-checked daily; each step (settle resolved markets → close the rest at the current '
-                    'price → redeploy compounding capital) appears here whenever a settle or a fresh '
-                    'edge over the cost buffer triggers one — any day, not only matchdays.</p>')
+                    're-checked daily; a step (settle a resolved market · cut a leg the model turns against · '
+                    'rotate into a clearly bigger edge · redeploy the freed, same-side capital) appears here '
+                    'whenever a trigger clears the cost buffer — any day, not only matchdays.</p>')
 
     arbs = ("".join(f"<li><b>{_disp(t)}</b>: "
                     f"priced to {dp} ({dpp}) more than to {sh} ({sp}) — impossible.</li>"

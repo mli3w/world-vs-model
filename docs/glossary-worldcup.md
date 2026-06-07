@@ -42,6 +42,10 @@ Everything here is **research & education** — not financial advice, not a tipp
 | **Mark-to-market (MTM)** | Re-pricing open positions at the current market to show running profit/loss. |
 | **Capital at risk · max ↑ · max ↓** | The money deployed, and the loose best/worst-case envelope of that book. |
 | **Buy & Hold vs Active Trading** | Enter once and hold to the end, versus re-evaluated daily — rebalancing whenever a market settles or a fresh edge clears the cost buffer (any day, not only matchdays). |
+| **Cost buffer** | The half-spread gate: a gap that doesn't clear it isn't traded. A *round trip* (close + reopen) costs ~2× it, so a switch must beat that. |
+| **Take-profit / Cut / Rotate** | The Active book's exit rules. **Cut** = stop-loss when the model flips against a leg. **Take-profit** = realised for free at settlement (we don't pay a spread to sit in cash). **Rotate** = leave a leg early only for a clearly bigger edge. |
+| **Hysteresis** | A dead-band around fair value so a leg that merely wobbles isn't cut-and-reopened repeatedly — it stops the book churning the spread on noise. |
+| **Bracket scorecard** | Scores the knockout *projection*: a round-weighted points race (market vs each model) plus a per-round Brier, frozen pre-tournament and tallied as rounds resolve. |
 
 ## Scoring & honesty
 

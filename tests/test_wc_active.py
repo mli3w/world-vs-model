@@ -15,82 +15,75 @@ def test_aligned_edge_sign():
     assert A.aligned_edge(+10, fair=0.4, price=0.5) < 0      # long but now overpriced -> against
 
 
-def test_classify_hold_take_cut():
+def test_classify_has_a_hysteresis_band():
     long_leg = {"shares": 10}
-    # gap still wide open -> HOLD
-    assert A.classify_leg(long_leg, fair=0.60, price=0.50, buffer=BUF) == A.HOLD
-    # price converged to fair (within the buffer) -> TAKE_PROFIT
-    assert A.classify_leg(long_leg, fair=0.505, price=0.50, buffer=BUF) == A.TAKE_PROFIT
-    # model flipped: fair now below price -> CUT
-    assert A.classify_leg(long_leg, fair=0.45, price=0.50, buffer=BUF) == A.CUT
-    # symmetric for a short
+    assert A.classify_leg(long_leg, fair=0.60, price=0.50, buffer=BUF) == A.HOLD          # wide edge
+    assert A.classify_leg(long_leg, fair=0.505, price=0.50, buffer=BUF) == A.TAKE_PROFIT  # converged
+    assert A.classify_leg(long_leg, fair=0.498, price=0.50, buffer=BUF) == A.TAKE_PROFIT  # tiny flip -> NOT cut
+    assert A.classify_leg(long_leg, fair=0.45, price=0.50, buffer=BUF) == A.CUT           # clearly against
     short_leg = {"shares": -10}
     assert A.classify_leg(short_leg, fair=0.40, price=0.50, buffer=BUF) == A.HOLD
-    assert A.classify_leg(short_leg, fair=0.495, price=0.50, buffer=BUF) == A.TAKE_PROFIT
     assert A.classify_leg(short_leg, fair=0.55, price=0.50, buffer=BUF) == A.CUT
 
 
 def test_should_rotate_needs_to_beat_round_trip():
-    cost = 0.01
-    # tiny improvement does not beat the ~2c round trip + buffer
-    assert not A.should_rotate(edge_held=0.05, edge_cand=0.06, cost=cost, buffer=BUF)
-    # a big improvement does
-    assert A.should_rotate(edge_held=0.02, edge_cand=0.10, cost=cost, buffer=BUF)
+    assert not A.should_rotate(edge_held=0.05, edge_cand=0.06, cost=0.01, buffer=BUF)
+    assert A.should_rotate(edge_held=0.02, edge_cand=0.10, cost=0.01, buffer=BUF)
 
 
-def test_plan_closes_played_out_and_redeploys():
-    legs = [
-        {"level": "win", "team": "Spain", "shares": 10, "entry": 0.15},     # converged -> take_profit
-        {"level": "win", "team": "Brazil", "shares": 10, "entry": 0.10},    # flipped  -> cut
-        {"level": "win", "team": "France", "shares": 10, "entry": 0.12},    # still good -> hold
-    ]
-    fairs = {("win", "Spain"): 0.155, ("win", "Brazil"): 0.07, ("win", "France"): 0.20}
-    prices = {("win", "Spain"): 0.15, ("win", "Brazil"): 0.10, ("win", "France"): 0.12}
-    cands = [{"level": "win", "team": "England", "edge": 0.08, "price": 0.09},
-             {"level": "win", "team": "Germany", "edge": 0.06, "price": 0.07}]
-    plan = A.plan_rebalance(legs, fairs, prices, cands, cost=0.01, buffer=BUF)
-    closed = {(c["team"], c["reason"]) for c in plan["close"]}
-    assert ("Spain", A.TAKE_PROFIT) in closed
-    assert ("Brazil", A.CUT) in closed
-    assert {l["team"] for l in plan["hold"]} == {"France"}
-    # two legs freed -> two best candidates opened
-    assert [o["team"] for o in plan["open"]] == ["England", "Germany"]
-    assert plan["open"][0]["entry"] == 0.09                  # opened at the current market price
-
-
-def test_nothing_churns_when_all_legs_hold():
+def test_converged_leg_rides_to_resolution_without_a_candidate():
     legs = [{"level": "win", "team": "Spain", "shares": 10, "entry": 0.15}]
-    fairs = {("win", "Spain"): 0.25}                          # still a fat edge
+    fairs = {("win", "Spain"): 0.151}                       # converged (~flat)
     prices = {("win", "Spain"): 0.15}
-    cands = [{"level": "win", "team": "England", "edge": 0.16, "price": 0.10}]  # bigger, but...
+    plan = A.plan_rebalance(legs, fairs, prices, candidates=[], cost=0.01, buffer=BUF)
+    assert plan["hold"] and not plan["close"]               # no paid early exit to sit in cash
+
+
+def test_cut_always_closes_as_stop_loss():
+    legs = [{"level": "win", "team": "Spain", "shares": 10, "entry": 0.15}]
+    fairs = {("win", "Spain"): 0.05}                        # model now hates it -> cut
+    prices = {("win", "Spain"): 0.15}
+    plan = A.plan_rebalance(legs, fairs, prices, candidates=[], cost=0.01, buffer=BUF)
+    assert [c["reason"] for c in plan["close"]] == [A.CUT]
+    assert not plan["open"]                                 # no candidate -> go to cash
+
+
+def test_redeploy_is_same_side_dollar_neutral():
+    legs = [{"level": "win", "team": "Spain", "shares": 10, "entry": 0.15}]   # a LONG
+    fairs = {("win", "Spain"): 0.03}; prices = {("win", "Spain"): 0.15}       # cut
+    cands = [{"level": "win", "team": "Brazil", "side": "SHORT", "edge": 0.20, "price": 0.60},
+             {"level": "win", "team": "England", "side": "LONG", "edge": 0.05, "price": 0.09}]
     plan = A.plan_rebalance(legs, fairs, prices, cands, cost=0.01, buffer=BUF)
-    # held edge is 0.10; candidate 0.16; improvement 0.06 > 2c+buf(0.03) -> rotate IS warranted
-    assert any(c["reason"] == "rotate" for c in plan["close"])
-    # but if the candidate is only marginally better, we hold
-    plan2 = A.plan_rebalance(legs, fairs, prices,
-                             [{"level": "win", "team": "England", "edge": 0.115, "price": 0.10}],
-                             cost=0.01, buffer=BUF)
-    assert plan2["hold"] and not plan2["close"]
+    assert len(plan["open"]) == 1
+    assert plan["open"][0]["team"] == "England" and plan["open"][0]["side"] == "LONG"  # not the bigger short
+
+
+def test_rotate_only_for_a_clearly_better_same_side_edge():
+    legs = [{"level": "win", "team": "Spain", "shares": 10, "entry": 0.15}]
+    fairs = {("win", "Spain"): 0.30}; prices = {("win", "Spain"): 0.15}       # held edge 0.15
+    marginal = [{"level": "win", "team": "England", "side": "LONG", "edge": 0.16, "price": 0.10}]
+    assert A.plan_rebalance(legs, fairs, prices, marginal, 0.01, BUF)["hold"]   # 0.16-0.15 < 0.03 -> hold
+    big = [{"level": "win", "team": "England", "side": "LONG", "edge": 0.20, "price": 0.10}]
+    plan = A.plan_rebalance(legs, fairs, prices, big, 0.01, BUF)
+    assert [c["reason"] for c in plan["close"]] == [A.ROTATE]
 
 
 def test_apply_is_noop_when_prices_equal_entries():
-    # day-0 state: price == entry, so each leg's edge is still its original (wide) edge -> all HOLD
     live = [{"level": "win", "team": "Spain", "shares": 10.0, "entry": 0.15, "status": "open", "realized": None}]
-    fairs = {("win", "Spain"): 0.25}                        # model fair well above price -> still good
-    prices = {("win", "Spain"): 0.15}
-    new, summ = A.apply_rebalance(live, fairs, prices, candidate_book=[], cost=0.01, buffer=BUF, date="2026-06-28")
+    fairs = {("win", "Spain"): 0.25}; prices = {("win", "Spain"): 0.15}
+    new, summ = A.apply_rebalance(live, fairs, prices, candidates=[], cost=0.01, buffer=BUF, date="2026-06-28")
     assert summ == {"closed": 0, "opened": 0, "held": 1}
     assert new == live                                      # append-only ledger untouched
 
 
-def test_apply_closes_and_rotates_append_only():
+def test_apply_rotates_append_only_and_sizes_to_freed_capital():
     live = [{"level": "win", "team": "Spain", "shares": 10.0, "entry": 0.15, "status": "open", "realized": None}]
-    fairs = {("win", "Spain"): 0.155}                       # converged to price -> take-profit
-    prices = {("win", "Spain"): 0.15}
-    cands = [{"level": "win", "team": "England", "edge": 0.08, "price": 0.10}]
+    fairs = {("win", "Spain"): 0.151}; prices = {("win", "Spain"): 0.15}       # converged
+    cands = [{"level": "win", "team": "England", "side": "LONG", "edge": 0.08, "price": 0.10}]
     new, summ = A.apply_rebalance(live, fairs, prices, cands, cost=0.01, buffer=BUF, date="2026-06-28")
     assert summ == {"closed": 1, "opened": 1, "held": 0}
     spain = next(r for r in new if r["team"] == "Spain")
-    assert spain["status"] == "closed" and spain["close_reason"] == A.TAKE_PROFIT
+    assert spain["status"] == "closed" and spain["close_reason"] == A.ROTATE
     eng = next(r for r in new if r["team"] == "England")
-    assert eng["status"] == "open" and eng["entry"] == 0.10  # opened at the current market
+    # freed capital = |10|*0.15 = 1.5; at 0.10 entry -> 15 shares, long
+    assert eng["status"] == "open" and eng["entry"] == 0.10 and eng["shares"] == 15.0

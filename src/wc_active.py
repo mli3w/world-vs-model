@@ -9,25 +9,34 @@ Every leg holds SIGNED YES-shares (long > 0, short < 0) entered at a price. Let
 
     fair      = the model's current fair probability for that outcome
     price     = the current market price
-    edge      = fair - price                      (signed, in YES space)
-    aligned   = edge * sign(shares)               (> 0 ⇒ the position is still favourable)
+    aligned   = (fair - price) * sign(shares)     (> 0 ⇒ the position is still favourable)
     buffer    = the per-trade cost gate (one half-spread); a round trip costs ~2·buffer
 
-Decisions (each must clear the buffer, because churning the spread bleeds the edge):
+Diagnostic state for one leg (the `buffer` band gives **hysteresis** so we don't whipsaw a leg
+that wobbles around fair, paying the spread each way):
 
-  HOLD         aligned  >  buffer          the gap that justified the trade is still open
-  TAKE_PROFIT  0 ≤ aligned ≤ buffer        price converged to fair — thesis played out, bank it
-  CUT          aligned  <  0               edge flipped sign — the reason to hold is gone
-  RESOLVED     the round happened          forced realization at the {0,1} outcome (handled in resolve)
+    HOLD         aligned >  buffer           the gap that justified the trade is still open
+    TAKE_PROFIT  −buffer ≤ aligned ≤ buffer   converged to fair — the edge has played out
+    CUT          aligned < −buffer            decisively against us — the thesis is broken
 
-Switching: freed capital (from TAKE_PROFIT / CUT / RESOLVED) is redeployed into the freshest
-edges that clear the buffer. When capital is fully deployed, we **rotate** a held leg for a
-candidate only if the improvement beats the round trip:  edge_cand − edge_held > 2·cost + buffer.
+What we actually *do* with those states (two deliberate design choices that keep churn low):
+
+  * **CUT → close now (stop-loss).** Holding a leg the model now thinks loses just realises a
+    bigger loss at settlement, so we exit early even though it costs a spread.
+  * **TAKE_PROFIT → ride it to its (free) resolution, NOT a paid early exit.** A converged leg
+    has ~zero edge left; closing it just pays a spread to sit in cash. We only close a converged
+    (or still-favourable) leg early to **rotate** into a clearly better edge — never to bank a
+    profit that settlement will pay us for free.
+  * **ROTATE** a held leg for a candidate only when the improvement beats the round trip:
+    edge_cand − aligned_held > 2·cost + buffer.
+
+Capital discipline: freed capital is redeployed into a **same-side** candidate (a freed long is
+replaced by a long, a short by a short), so the book stays dollar-neutral by construction.
 
 Research/education only — paper book, no capital invested.
 """
 
-HOLD, TAKE_PROFIT, CUT = "hold", "take_profit", "cut"
+HOLD, TAKE_PROFIT, CUT, ROTATE = "hold", "take_profit", "cut", "rotate"
 
 
 def aligned_edge(shares, fair, price):
@@ -35,24 +44,25 @@ def aligned_edge(shares, fair, price):
     return (fair - price) * (1.0 if shares >= 0 else -1.0)
 
 
-def classify_leg(leg, fair, price, buffer):
-    """Decide HOLD / TAKE_PROFIT / CUT for one open leg given its current fair & price.
+def side_of(shares):
+    return "LONG" if shares >= 0 else "SHORT"
 
-    `leg` needs at least {shares}. Returns one of the module constants.
-    """
+
+def classify_leg(leg, fair, price, buffer):
+    """Diagnostic state HOLD / TAKE_PROFIT / CUT for one leg (with the ±buffer hysteresis band)."""
     a = aligned_edge(leg["shares"], fair, price)
-    if a < 0:
-        return CUT                      # thesis flipped — the model now disagrees with the position
+    if a < -buffer:
+        return CUT
     if a <= buffer:
-        return TAKE_PROFIT              # converged to fair — no edge left worth the spread
-    return HOLD                         # gap still open and bigger than the cost to trade it
+        return TAKE_PROFIT
+    return HOLD
 
 
 def should_rotate(edge_held, edge_cand, cost, buffer):
     """Swap a held leg for a candidate only if the improvement beats the round-trip cost.
 
-    `edge_held`/`edge_cand` are the *aligned* (favourable, ≥0) edges. A round trip (close the
-    old leg, open the new one) costs ~2·cost; we add the buffer so we don't churn on noise.
+    `edge_held`/`edge_cand` are the *aligned* (favourable, ≥0) edges. A round trip (close the old
+    leg, open the new one) costs ~2·cost; the buffer keeps us from churning on noise.
     """
     return (edge_cand - edge_held) > (2.0 * cost + buffer)
 
@@ -60,77 +70,93 @@ def should_rotate(edge_held, edge_cand, cost, buffer):
 def plan_rebalance(open_legs, fairs, prices, candidates, cost, buffer):
     """Produce a rebalance plan from the rules. Pure: no I/O, no PnL side effects.
 
-    open_legs   : [{level, team, shares, entry}, ...]   (current open positions)
-    fairs       : {(level, team): fair_prob}            (the model's current fair)
-    prices      : {(level, team): market_price}         (current market)
-    candidates  : [{level, team, edge, ...}, ...]       fresh edges (aligned/favourable, edge>0),
-                  excluding outcomes already held; sorted best-first by the caller or here.
+    open_legs   : [{level, team, shares, entry}, ...]
+    fairs       : {(level, team): fair_prob}            the model's current fair
+    prices      : {(level, team): market_price}         current market
+    candidates  : [{level, team, side, edge, price}]    fresh favourable edges (edge>0), `side`
+                  is "LONG"/"SHORT"; excludes outcomes already held.
     cost, buffer: the half-spread and the cost gate.
 
-    Returns dict(close=[...], open=[...], hold=[...]) where each close carries its reason. The
-    caller turns this into ledger writes (realize at price, open new legs).
+    Returns dict(close=[...], open=[...], hold=[...]). Each `open` carries `funds` = the (level,
+    team) of the leg whose freed capital it takes, so the apply step can size it dollar-for-dollar.
     """
-    held_keys = {(l["level"], l["team"]) for l in open_legs}
-    cands = sorted((c for c in candidates if (c["level"], c["team"]) not in held_keys),
-                   key=lambda c: -abs(c["edge"]))
+    held = {(l["level"], l["team"]) for l in open_legs}
+    pools = {"LONG": [], "SHORT": []}
+    for c in candidates:
+        if (c["level"], c["team"]) in held:
+            continue
+        pools.setdefault(c.get("side", "LONG"), []).append(c)
+    for s in pools:
+        pools[s].sort(key=lambda c: -abs(c["edge"]))
+    used = {"LONG": 0, "SHORT": 0}
+    close, hold, opens = [], [], []
 
-    close, hold = [], []
+    def _take(side, leg):
+        """Pop the best unused same-side candidate; record an open funded by `leg`."""
+        if used[side] < len(pools[side]):
+            c = pools[side][used[side]]
+            used[side] += 1
+            opens.append(dict(level=c["level"], team=c["team"], side=side, edge=abs(c["edge"]),
+                              entry=prices.get((c["level"], c["team"]), c.get("price")),
+                              funds=(leg["level"], leg["team"])))
+            return True
+        return False
+
     for leg in open_legs:
         k = (leg["level"], leg["team"])
         fair, price = fairs.get(k), prices.get(k)
         if fair is None or price is None:
             hold.append(leg)
             continue
-        decision = classify_leg(leg, fair, price, buffer)
-        if decision == HOLD:
-            # consider rotating this held leg for a clearly better candidate
-            held_e = aligned_edge(leg["shares"], fair, price)
-            if cands and should_rotate(held_e, abs(cands[0]["edge"]), cost, buffer):
-                close.append({**leg, "reason": "rotate", "exit": price})
-                # the freed slot is taken by the best candidate below
-            else:
-                hold.append(leg)
+        a = aligned_edge(leg["shares"], fair, price)
+        side = side_of(leg["shares"])
+        if classify_leg(leg, fair, price, buffer) == CUT:        # stop-loss: always exit
+            close.append({**leg, "reason": CUT, "exit": price})
+            _take(side, leg)
+            continue
+        # HOLD or converged: only leave early to rotate into a clearly better same-side edge
+        held_edge = max(a, 0.0)
+        nxt = pools[side][used[side]] if used[side] < len(pools[side]) else None
+        if nxt and should_rotate(held_edge, abs(nxt["edge"]), cost, buffer):
+            close.append({**leg, "reason": ROTATE, "exit": price})
+            _take(side, leg)
         else:
-            close.append({**leg, "reason": decision, "exit": price})
-
-    n_freed = len(close)                        # one freed slot per closed leg (equal-slot model)
-    opens = [dict(level=c["level"], team=c["team"], edge=c["edge"],
-                  entry=prices.get((c["level"], c["team"]), c.get("price")))
-             for c in cands[:n_freed]]
+            hold.append(leg)
     return dict(close=close, open=opens, hold=hold)
 
 
 def _stake_of(row):
-    """Capital at risk of a held leg = |shares| · cost-per-share at entry."""
+    """Capital at risk of a leg = |shares| · cost-per-share at entry."""
     cps = row["entry"] if row["shares"] >= 0 else (1 - row["entry"])
     return abs(row["shares"]) * cps
 
 
-def apply_rebalance(live_rows, fairs, prices, candidate_book, cost, buffer, date):
+def apply_rebalance(live_rows, fairs, prices, candidates, cost, buffer, date):
     """Turn a rebalance plan into APPEND-ONLY ledger rows (the audit trail stays intact).
 
-    Closes (take-profit / cut / rotate) flip a leg to status='closed' with realized PnL at the exit
-    price; each freed leg funds one new 'rotate-in' leg, sized to the same capital at risk. Returns
-    (new_rows, summary). Pre-tournament, with prices ≈ entries, every leg HOLDs and this is a no-op.
+    Closes (cut / rotate) flip a leg to status='closed' with realized PnL at the exit price; each
+    freed leg funds one same-side 'rotate-in' leg, sized to the same capital at risk. Returns
+    (new_rows, summary). Pre-tournament, with prices ≈ entries, every leg HOLDs → a no-op.
     """
     open_legs = [r for r in live_rows if r.get("status") == "open"]
-    plan = plan_rebalance(open_legs, fairs, prices, candidate_book, cost, buffer)
+    plan = plan_rebalance(open_legs, fairs, prices, candidates, cost, buffer)
     closed = {(c["level"], c["team"]): c["reason"] for c in plan["close"]}
-    out, freed_stakes = [], []
+    stake_by_key = {(r["level"], r["team"]): _stake_of(r) for r in open_legs}
+    out = []
     for r in live_rows:
         k = (r["level"], r["team"])
         if r.get("status") == "open" and k in closed:
             exit_p = prices.get(k, r["entry"])
-            freed_stakes.append(_stake_of(r))
             out.append({**r, "status": "closed", "realized": round(r["shares"] * (exit_p - r["entry"]), 4),
                         "resolved_at": date, "exit": round(exit_p, 4), "close_reason": closed[k]})
         else:
             out.append(r)
-    for o, stake in zip(plan["open"], freed_stakes):
-        side = 1 if o["edge"] >= 0 else -1
+    for o in plan["open"]:
+        stake = stake_by_key.get(o.get("funds"), 0.0)
+        sgn = 1 if o["side"] == "LONG" else -1
         entry = o["entry"]
-        cps = entry if side > 0 else (1 - entry)
+        cps = entry if sgn > 0 else (1 - entry)
         out.append(dict(id=f"{o['level']}:{o['team']}:{date}", level=o["level"], team=o["team"],
-                        shares=round(stake / max(cps, 1e-3) * side, 4), entry=round(entry, 4),
+                        shares=round(stake / max(cps, 1e-3) * sgn, 4), entry=round(entry, 4),
                         date=date, note=f"rotate-in · edge {o['edge']:+.3f}", status="open", realized=None))
     return out, dict(closed=len(plan["close"]), opened=len(plan["open"]), held=len(plan["hold"]))

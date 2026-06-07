@@ -101,13 +101,24 @@ Two **trading styles**, run identically for *both* models so the comparison is s
 - **Buy & Hold** *(`wc-core`)* — entered **once** at day 0, every ticket held to its market's
   resolution. The clean test of *"was the pre-tournament view right?"* PnL settles in waves
   (advance → QF → SF → final → win).
-- **Active Trading** *(`wc-live`)* — **re-evaluated daily**, not just on matchdays. The board refreshes
-  every ~3 hours, and the book rebalances whenever a trigger clears the bar: **settle** what resolved,
-  **close** the rest at the current price, **redeploy** the compounding capital into the freshest edges.
-  A trigger is a market settling *or* a fresh edge that clears the **cost buffer** (the half-spread) —
-  the cleanest case being a **riskless inconsistency**, which can open on a quiet, no-match day. We scan
-  daily but only trade on a buffer-clearing edge, so we don't churn the spread on noise. The test of
-  *"does acting on the model's updates beat just holding?"* Its changelog is the rebalance timeline.
+- **Active Trading** *(`wc-live`)* — **re-evaluated daily**, not just on matchdays (the board refreshes
+  ~every 3 hours). It trades only on an explicit, cost-gated rule set (`src/wc_active.py`), so the only
+  difference from Buy & Hold is *disciplined* action — never churn. With `aligned = (fair − price)·sign`
+  the position's still-favourable edge and `buffer` the half-spread:
+  - **Hold** while `aligned > buffer` — the gap that justified the trade is still open.
+  - **Cut** (stop-loss) when `aligned < −buffer` — the model now thinks the leg loses, so exit early
+    rather than realise a bigger loss at settlement. The ±buffer band is **hysteresis**: a leg that
+    merely wobbles around fair is *not* cut, so we don't whipsaw the spread.
+  - **Take-profit is taken at resolution, not by a paid early exit.** A converged leg (`|aligned| ≤
+    buffer`) has ~no edge left; closing it just pays a spread to sit in cash, so we **ride it to its
+    free settlement** — and only close it early to **rotate** into a clearly better edge.
+  - **Rotate** a held leg for a candidate only when `edge_cand − aligned > 2·cost + buffer` (the swap
+    must beat its round trip). Freed capital is redeployed **same-side** (a long replaces a long, a
+    short a short), so the book stays dollar-neutral by construction.
+  - **Resolution** forces realisation at the {0,1} outcome.
+
+  A **riskless inconsistency** is the cleanest any-day trigger. The test: *"does acting on the model's
+  updates beat just holding, net of churn?"* Its changelog is the rebalance timeline.
 
 Crossed with the two **models** that produce the edges — the **zero-knowledge** structural model and
 the **informed** Elo model (§5b) — that is four books, each its own tab with its own PnL: *Buy & Hold*,
@@ -230,6 +241,17 @@ We are deliberately loud about the limitations — the credibility is in the cav
   high *within their group* (e.g. Panama's Elo is 2nd in Group L), while the market strongly
   disagrees. Those are legitimate model disagreements, but the market is usually the sharper one
   there, so the **win-level** disagreements (results-vs-reputation) are the more defensible story.
+- **The Active book's rotation rule is a deliberately simple baseline.** It has hysteresis (no
+  whipsaw), a stop-loss, ride-to-resolution take-profit, and dollar-neutral redeploy — but it (a)
+  trusts the model's *own* fair value to decide convergence (circular if the model is
+  mis-calibrated), (b) ignores **time-to-resolution** (an edge is more trustworthy as τ→0, and a
+  small far-dated edge is mostly cost-drag), (c) has **no correlation guard** (rotating
+  "Spain-to-win" into "Spain-to-final" isn't diversification), and (d) assumes you can exit at the
+  marked price (thin depth says otherwise). We keep it simple on purpose: given the spreads, the
+  honest expectation is that a disciplined Active book trades *rarely* and may **lose** to Buy &
+  Hold net of costs — publishing that cleanly is the point, not winning, so we resist false
+  precision. τ-weighting, a calibration-discounted edge, and a correlation gate are the natural
+  next steps if the realized ledger says churn is paying.
 
 **How we'd improve it**
 - **Fit the bias from settled outcomes** per round (recalibrate the de-vig power from the realized
