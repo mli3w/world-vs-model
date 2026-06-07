@@ -196,6 +196,16 @@ the ranking doesn't move. One bracket is a single high-variance draw while the B
 of them. Both come from the one pre-registered, timestamped ledger
 (`src/worldcup_register.py::bracket_scorecard`), so a skeptic can recompute either.
 
+**As it unfolds (the living companion).** The frozen bracket is the *commitment*; alongside it
+(`src/wc_evolution.py`) we surface how the picture *moves* once games are played — which stays dormant
+pre-tournament. Two views: the biggest **forecast moves** (how far the informed model's live
+re-forecast has drifted from its frozen kickoff title odds — the model visibly changing its mind as
+the Elo updates on results), and the biggest **surprises**, ranked by **surprisal** = −log₂(p) in bits
+(a coin-flip that lands is 1 bit, a 1-in-8 is 3): underdogs who got through against the odds and
+favourites who flopped, each tagged with whether the **model** or the **market** was less surprised —
+i.e. who actually saw it coming. World Cups reliably spring a few; this is where you watch the two
+forecasters react in real time, on top of the frozen call.
+
 ## 6. What's missing, and how we'd improve it (read this part)
 
 We are deliberately loud about the limitations — the credibility is in the caveats.
@@ -398,4 +408,5 @@ $$\text{Brier} = \frac{1}{n}\sum_i (p_i - o_i)^2, \qquad
 | Active book rotation rules (sell / take-profit / cut / switch, cost-gated) | `src/wc_active.py` |
 | Conviction-weighted sizing + the four books + the HTML board | `src/worldcup_board.py` |
 | Pre-registered predictions, frozen books, scorecard + the **bracket scorecard** | `src/worldcup_register.py`, `ledger/` |
+| "As it unfolds" — forecast moves + surprise (surprisal) ranking | `src/wc_evolution.py` |
 | Record a played result → live re-forecast | `src/feed_result.py` |

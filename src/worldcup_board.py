@@ -37,6 +37,7 @@ ELO_CORE_LEDGER = os.path.join("ledger", "wc_elo_core.jsonl")   # informed (Elo)
 ELO_LIVE_LEDGER = os.path.join("ledger", "wc_elo_live.jsonl")   # informed (Elo) Active
 SCORECARD = os.path.join("ledger", "scorecard.json")      # the public, resolved-out-of-sample record
 BRACKET_SCORE = os.path.join("ledger", "bracket_score.json")  # the knockout-bracket scorecard
+PREDICTIONS = os.path.join("ledger", "predictions.jsonl")  # the timestamped forecast ledger
 RESULTS_PATH = os.path.join("ledger", "wc_results.json")  # played matches -> live Elo re-forecast
 
 # the live site (GitHub Pages). Used for ABSOLUTE og:image / og:url — social scrapers (LinkedIn in
@@ -311,6 +312,74 @@ def _bracket_score_html(path=BRACKET_SCORE):
         'calibration (Brier), not on picks. And one bracket is a single high-variance draw, so the '
         'round-by-round <a href="methodology.html">Brier scores</a> are the meaningful verdict; this '
         'points race is the legible one.</p>')
+
+
+_UNFOLD_PHRASE = {"advance": "into the last 32", "reach_QF": "into the quarters",
+                  "reach_SF": "into the semis", "reach_F": "into the final", "win": "to the title"}
+
+
+def _evolution_html(fundamental, pred_path=PREDICTIONS, results_path=RESULTS_PATH):
+    """The 'as it unfolds' panel — how the model has moved since kickoff + the biggest shocks.
+    Dormant until games are played (so it never looks broken pre-tournament)."""
+    import json as _json
+    import wc_evolution as EV
+
+    results = load_results(results_path)
+    head = ('<h2 id=unfolds>As it unfolds '
+            '<span class=sub>— how the model moved since kickoff, and the biggest shocks</span></h2>')
+    if not results:                                          # pre-tournament: dormant, but inviting
+        return (head + '<p class=note>🔮 Lights up once the first games are played. The informed model '
+                're-forecasts after every result, so this will show <b>how it changed its mind</b> '
+                '(title odds rising and falling) and the <b>biggest surprises</b> — with whether the '
+                '<span class=eloc>model</span> or the <span class=world>market</span> saw them coming. '
+                'World Cups always spring a few.</p>')
+
+    KICK = KICKOFF.isoformat()
+    preds = []
+    try:
+        with open(pred_path, encoding="utf-8") as f:
+            preds = [_json.loads(l) for l in f if l.strip()]
+    except (FileNotFoundError, ValueError):
+        preds = []
+    committed = {}                                           # the kickoff-frozen forecast per (model,level,team)
+    for p in preds:
+        if p.get("date", "9999") <= KICK:
+            k = (p["model"], p["level"], p["team"])
+            if k not in committed or p["date"] >= committed[k]["date"]:
+                committed[k] = p
+    nz = WM.WL._norm
+    frozen_win = {t: r["prob"] for (m, l, t), r in committed.items() if m == "elo" and l == "win"}
+    live_win = {nz(t): v for t, v in fundamental.get("win", {}).items()}
+    moves = EV.forecast_moves(frozen_win, live_win, top=6, min_delta=0.02)
+    resolved = [dict(level=l, team=t, model=r["prob"], market=r.get("market"), outcome=r["outcome"])
+                for (m, l, t), r in committed.items() if m == "elo" and r.get("outcome") is not None]
+    shocks = EV.surprises(resolved, top=6)
+
+    def _chip(t):
+        return f'{WM.flag_img(t)}<b>{WM.code(t)}</b>'
+
+    mv_html = "".join(
+        f'<li>{_chip(m["team"])} <span class="{"pos" if m["delta"]>0 else "neg"}">'
+        f'{m["delta"]*100:+.0f} pp</span> to win '
+        f'<span class=sub>({m["frozen"]*100:.0f}% → {m["live"]*100:.0f}%)</span></li>'
+        for m in moves) or '<li class=sub>no notable swings in title odds yet</li>'
+    sh_html = "".join(
+        f'<li>{_chip(s["team"])} '
+        + (f'made it {_UNFOLD_PHRASE.get(s["level"], "through")}' if s["kind"] == "upset"
+           else f'fell short {_UNFOLD_PHRASE.get(s["level"], "")}')
+        + f' — model <span class=eloc>{s["model"]*100:.0f}%</span> · market '
+        f'<span class=world>{s["market"]*100:.0f}%</span> '
+        f'<span class=sub>({s["combined"]:.1f} bits · '
+        f'{"model called it" if s["called_better"]=="model" else "market called it" if s["called_better"]=="market" else "both fooled"})</span></li>'
+        for s in shocks) or '<li class=sub>no big shocks yet — the favourites are holding</li>'
+    return (head
+            + '<div class=grid><div><h3>Biggest forecast moves <span class=sub>(title odds since '
+            'kickoff)</span></h3><ul class=evlist>' + mv_html + '</ul></div>'
+            '<div><h3>Biggest surprises <span class=sub>(and who saw them coming)</span></h3>'
+            '<ul class=evlist>' + sh_html + '</ul></div></div>'
+            '<p class="note sub">Surprise is measured in <b>bits</b> (−log₂ of the chance given) — a '
+            'coin-flip that lands is 1 bit, a 1-in-8 is 3. The frozen kickoff call is the headline; '
+            'this is the living companion.</p>')
 
 
 def _kickoff_note(today=None):
@@ -936,6 +1005,7 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
                  f'<div id=pane-elol class=pane hidden>{elol_money}<div class=scroll>{elol_book}</div></div>'
                  ) if fundamental else ""
     bracket_score_html = _bracket_score_html()               # the knockout bracket scorecard
+    evolution_html = _evolution_html(fundamental) if fundamental else ""   # 'as it unfolds' (dormant pre-tournament)
     outcome_html = (_outcome_map(fundamental, positions, WM.WL.GROUPS_2026)
                     if (fundamental and positions) else "")
     fixtures_html = _fixtures(WM.WL.GROUPS_2026)
@@ -1050,6 +1120,8 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  .bsc.model{{border-color:var(--model);color:var(--ink)}} .bsc.world{{border-color:var(--world);color:var(--ink)}}
  .bshit{{font-weight:700;font-size:12px;padding:1px 7px;border-radius:6px;border:1px solid var(--line2);margin-right:5px}}
  .bshit.pos{{color:var(--pos);border-color:var(--pos)}} .bshit.neg{{color:var(--neg)}}
+ ul.evlist{{list-style:none;padding:0;margin:4px 0}} ul.evlist li{{padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}}
+ ul.evlist li img.flag{{vertical-align:-2px;margin-right:4px}} ul.evlist .sub{{color:var(--ink3)}}
  .searchbar{{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line3);
    border-radius:12px;padding:2px 10px;margin:16px 0 4px}} .searchbar:focus-within{{border-color:var(--model)}}
  .find{{flex:1;width:auto;border:0;background:transparent;color:var(--ink);font-size:14px;padding:11px 2px}}
@@ -1258,6 +1330,7 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  </div>
  {outcome_html}
  {bracket_score_html}
+ {evolution_html}
  {fixtures_html}
  <h2 id=book>If you'd traded it <span class=sub>— a paper book to keep score, not advice</span></h2>
  <p class=note><b>A secondary, "what-if" view</b> — purely to put a number on the disagreements above.

@@ -13,6 +13,34 @@ LADDER = {"advance": {}, "reach_QF": {}, "reach_SF": {}, "reach_F": {},
           "win": {"fav": 0.40, "strong": 0.25, "mid": 0.12, "weak": 0.04, "dog": 0.01}}
 
 
+def test_evolution_panel_dormant_then_lights_up(tmp_path):
+    import json
+    nz = B.WM.WL._norm
+    # dormant when there are no played results
+    dorm = B._evolution_html({"win": {}}, pred_path=str(tmp_path / "none.jsonl"),
+                             results_path=str(tmp_path / "none.json"))
+    assert "id=unfolds" in dorm and "Lights up once the first games" in dorm
+
+    # lights up once results exist: a frozen forecast + a resolved upset, and a live swing
+    pred = tmp_path / "predictions.jsonl"
+    rows = [
+        {"date": "2026-06-07", "model": "elo", "level": "win", "team": nz("Spain"),
+         "prob": 0.17, "market": 0.16, "outcome": None},
+        {"date": "2026-06-07", "model": "elo", "level": "win", "team": nz("Morocco"),
+         "prob": 0.02, "market": 0.02, "outcome": None},
+        {"date": "2026-06-07", "model": "elo", "level": "advance", "team": nz("Saudi Arabia"),
+         "prob": 0.18, "market": 0.14, "outcome": 1},        # an upset that resolved
+    ]
+    pred.write_text("\n".join(json.dumps(r) for r in rows), encoding="utf-8")
+    res = tmp_path / "wc_results.json"
+    res.write_text(json.dumps([{"a": "Spain", "b": "Morocco", "ga": 1, "gb": 0, "stage": "group"}]), encoding="utf-8")
+    live = {"win": {nz("Spain"): 0.15, nz("Morocco"): 0.16}}  # Morocco surged since kickoff
+    h = B._evolution_html(live, pred_path=str(pred), results_path=str(res))
+    assert "Lights up once" not in h                          # not dormant
+    assert "pp</span> to win" in h                            # a forecast move rendered
+    assert "made it into the last 32" in h                    # the upset surfaced as a surprise
+
+
 def test_poll_widget_is_opt_in():
     assert B._poll_widget("") == ""                              # no endpoint -> nothing renders
     w = B._poll_widget("https://wvm-poll.example.workers.dev/")
