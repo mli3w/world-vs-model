@@ -1,0 +1,214 @@
+{
+  "as_of": "2026-06-07",
+  "points": {
+    "market": 0,
+    "zero_knowledge": 0,
+    "elo": 0
+  },
+  "levels": [
+    {
+      "level": "advance",
+      "label": "Last 32",
+      "slots": 32,
+      "weight": 1,
+      "resolved": false,
+      "picks": {
+        "market": [
+          "spain",
+          "england",
+          "france",
+          "brazil",
+          "germany"
+        ],
+        "zero_knowledge": [
+          "brazil",
+          "germany",
+          "belgium",
+          "spain",
+          "france"
+        ],
+        "elo": [
+          "spain",
+          "argentina",
+          "england",
+          "france",
+          "switzerland"
+        ]
+      },
+      "hits": {},
+      "agree": 30,
+      "contested": {
+        "model": [
+          "panama",
+          "australia"
+        ],
+        "market": [
+          "algeria",
+          "bosniaandherzegovina"
+        ]
+      }
+    },
+    {
+      "level": "reach_QF",
+      "label": "Quarter-finals",
+      "slots": 8,
+      "weight": 4,
+      "resolved": false,
+      "picks": {
+        "market": [
+          "spain",
+          "france",
+          "england",
+          "argentina",
+          "portugal"
+        ],
+        "zero_knowledge": [
+          "spain",
+          "france",
+          "england",
+          "argentina",
+          "portugal"
+        ],
+        "elo": [
+          "spain",
+          "argentina",
+          "france",
+          "england",
+          "brazil"
+        ]
+      },
+      "hits": {},
+      "agree": 7,
+      "contested": {
+        "model": [
+          "colombia"
+        ],
+        "market": [
+          "germany"
+        ]
+      }
+    },
+    {
+      "level": "reach_SF",
+      "label": "Semi-finals",
+      "slots": 4,
+      "weight": 8,
+      "resolved": false,
+      "picks": {
+        "market": [
+          "spain",
+          "france",
+          "england",
+          "portugal",
+          "argentina"
+        ],
+        "zero_knowledge": [
+          "spain",
+          "france",
+          "england",
+          "portugal",
+          "argentina"
+        ],
+        "elo": [
+          "spain",
+          "argentina",
+          "france",
+          "england",
+          "brazil"
+        ]
+      },
+      "hits": {},
+      "agree": 3,
+      "contested": {
+        "model": [
+          "argentina"
+        ],
+        "market": [
+          "portugal"
+        ]
+      }
+    },
+    {
+      "level": "reach_F",
+      "label": "Final",
+      "slots": 2,
+      "weight": 16,
+      "resolved": false,
+      "picks": {
+        "market": [
+          "spain",
+          "france",
+          "england",
+          "brazil",
+          "argentina"
+        ],
+        "zero_knowledge": [
+          "spain",
+          "france",
+          "england",
+          "brazil",
+          "argentina"
+        ],
+        "elo": [
+          "spain",
+          "argentina",
+          "france",
+          "england",
+          "brazil"
+        ]
+      },
+      "hits": {},
+      "agree": 1,
+      "contested": {
+        "model": [
+          "argentina"
+        ],
+        "market": [
+          "france"
+        ]
+      }
+    },
+    {
+      "level": "win",
+      "label": "Champion",
+      "slots": 1,
+      "weight": 32,
+      "resolved": false,
+      "picks": {
+        "market": [
+          "spain",
+          "france",
+          "england",
+          "portugal",
+          "argentina"
+        ],
+        "zero_knowledge": [
+          "spain",
+          "france",
+          "england",
+          "portugal",
+          "argentina"
+        ],
+        "elo": [
+          "spain",
+          "argentina",
+          "france",
+          "england",
+          "brazil"
+        ]
+      },
+      "hits": {},
+      "agree": 1,
+      "contested": {
+        "model": [],
+        "market": []
+      }
+    }
+  ],
+  "champions": {
+    "market": "spain",
+    "zero_knowledge": "spain",
+    "elo": "spain"
+  },
+  "n_resolved": 0
+}

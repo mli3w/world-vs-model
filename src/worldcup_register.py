@@ -30,7 +30,15 @@ CORE = os.path.join(LEDGER, "wc_core.jsonl")        # frozen zero-knowledge Buy 
 LIVE = os.path.join(LEDGER, "wc_live.jsonl")        # frozen zero-knowledge Active book
 ELO_CORE = os.path.join(LEDGER, "wc_elo_core.jsonl")  # frozen informed (Elo) Buy & Hold book
 ELO_LIVE = os.path.join(LEDGER, "wc_elo_live.jsonl")  # frozen informed (Elo) Active book
-CLAIM_LEVELS = ("advance", "win")                   # the levels we register a forecast for
+BRACKET_SCORE = os.path.join(LEDGER, "bracket_score.json")  # the knockout-bracket scorecard
+# Every market rung we register a forecast for — the whole knockout ladder, not just the ends, so
+# the bracket (who goes how far) is scored round by round. reach_R16 has no Polymarket market.
+CLAIM_LEVELS = ("advance", "reach_QF", "reach_SF", "reach_F", "win")
+# slots that actually reach each rung, and the bracket-points weight for a correct pick there.
+LEVEL_SLOTS = {"advance": 32, "reach_QF": 8, "reach_SF": 4, "reach_F": 2, "win": 1}
+BRACKET_WEIGHTS = {"advance": 1, "reach_QF": 4, "reach_SF": 8, "reach_F": 16, "win": 32}
+BRACKET_LABELS = {"advance": "Last 32", "reach_QF": "Quarter-finals", "reach_SF": "Semi-finals",
+                  "reach_F": "Final", "win": "Champion"}
 
 
 def _devig(prices, slots):
@@ -88,6 +96,7 @@ def snapshot(ladder=None, fundamental=None, power=1.15, bankroll=1000.0, date=No
         _write(preds + new, PRED)
         print(f"[register] wrote {len(new)} forecasts for {date} -> {PRED}")
     _freeze_books(ladder, fundamental, power, bankroll, date)
+    write_bracket_scorecard()
     return write_scorecard()
 
 
@@ -140,6 +149,99 @@ def write_scorecard():
     return card
 
 
+def add_levels(levels, ladder=None, fundamental=None, power=1.15, date=None):
+    """Register forecasts for extra market rungs (e.g. the mid-bracket reach_QF/SF/F) as a dated
+    snapshot, skipping any (date, model, level, team) already present. Used to extend an existing
+    day's registration to the full knockout ladder without disturbing what's already stamped."""
+    ladder = ladder or WM.fetch_ladder()
+    fundamental = fundamental if fundamental is not None else WF.fundamental_ladder()
+    date = date or dt.date.today().isoformat()
+    preds = _load(PRED)
+    have = {(p["date"], p["model"], p["level"], p["team"]) for p in preds}
+    slot_of = {lvl: s for lvl, _g, s in WM.LADDER}
+    new = []
+    for lvl in levels:
+        prices = ladder.get(lvl, {})
+        if not prices or lvl not in slot_of:
+            continue
+        mkt, zk = _devig(prices, slot_of[lvl]), _zk(prices, slot_of[lvl], power)
+        elo = fundamental.get(lvl, {})
+        for t in prices:
+            base = round(mkt[t], 4)
+            if (date, "zero_knowledge", lvl, t) not in have:
+                new.append(dict(date=date, model="zero_knowledge", level=lvl, team=t,
+                                prob=round(zk[t], 4), market=base, provenance="real", outcome=None))
+            fp = elo.get(_norm(t))
+            if fp is not None and (date, "elo", lvl, t) not in have:
+                new.append(dict(date=date, model="elo", level=lvl, team=t,
+                                prob=round(float(fp), 4), market=base, provenance="real", outcome=None))
+    if new:
+        _write(preds + new, PRED)
+        print(f"[register] added {len(new)} forecasts for levels {levels} ({date}) -> {PRED}")
+    return len(new)
+
+
+def bracket_scorecard(preds=None):
+    """Score the knockout bracket round by round, market vs each model, from the registered
+    forecasts + their resolved outcomes. Two readings: a round-weighted **points** race (a correct
+    team that reaches a rung scores that rung's weight) and the per-rung **hit** counts. Each
+    'player' picks the top-k teams by its own probability, where k is the rung's slot count."""
+    preds = preds if preds is not None else _load(PRED)
+    latest = {}                                            # newest forecast per (model, level, team)
+    for p in preds:
+        k = (p["model"], p["level"], p["team"])
+        if k not in latest or p["date"] >= latest[k]["date"]:
+            latest[k] = p
+    lev = {}                                               # level -> team -> {market, zk, elo, outcome}
+    for (model, level, team), p in latest.items():
+        d = lev.setdefault(level, {}).setdefault(team, {})
+        d[model] = p["prob"]
+        d["market"] = p.get("market")
+        if p.get("outcome") is not None:
+            d["outcome"] = p["outcome"]
+    players = ("market", "zero_knowledge", "elo")
+    points = {pl: 0 for pl in players}
+    rows = []
+    for level in CLAIM_LEVELS:
+        teams = lev.get(level)
+        if not teams:
+            continue
+        k, w = LEVEL_SLOTS[level], BRACKET_WEIGHTS[level]
+        actual = {t for t, d in teams.items() if d.get("outcome") == 1}
+        row = dict(level=level, label=BRACKET_LABELS[level], slots=k, weight=w,
+                   resolved=bool(actual), picks={}, hits={})
+        topk = {}                                          # full top-k set per player (for divergence)
+        for pl in players:
+            ranked = sorted((t for t in teams if teams[t].get(pl) is not None),
+                            key=lambda t: -teams[t][pl])
+            topk[pl] = ranked[:k]
+            row["picks"][pl] = ranked[:5]                  # keep a few for display
+            if actual:
+                hit = len(set(ranked[:k]) & actual)
+                row["hits"][pl] = hit
+                points[pl] += w * hit
+        em, mm = set(topk.get("elo", [])), set(topk.get("market", []))
+        row["agree"] = len(em & mm)                        # where the model and market's brackets coincide
+        row["contested"] = dict(
+            model=sorted(em - mm, key=lambda t: -teams[t].get("elo", 0))[:4],
+            market=sorted(mm - em, key=lambda t: -teams[t].get("market", 0))[:4])
+        rows.append(row)
+    win = next((r for r in rows if r["level"] == "win"), None)
+    champions = {pl: (win["picks"][pl][0] if win and win["picks"].get(pl) else None)
+                 for pl in players} if win else {}
+    return dict(as_of=dt.date.today().isoformat(), points=points, levels=rows,
+                champions=champions, n_resolved=sum(1 for r in rows if r["resolved"]))
+
+
+def write_bracket_scorecard():
+    """Persist the bracket scorecard the board reads."""
+    card = bracket_scorecard()
+    os.makedirs(os.path.dirname(BRACKET_SCORE) or ".", exist_ok=True)
+    with open(BRACKET_SCORE, "w", encoding="utf-8") as f:
+        json.dump(card, f, indent=2)
+    return card
+
+
 def resolve(level, outcomes):
     """Settle forecasts at `level` against {team: 0/1}; rescore; settle the frozen books too."""
     preds = _load(PRED)
@@ -158,6 +260,7 @@ def resolve(level, outcomes):
                 r["resolved_at"] = dt.date.today().isoformat()
         _write(rows, path)
     print(f"[register] resolved {n} forecasts at {level}")
+    write_bracket_scorecard()
     return write_scorecard()
 
 

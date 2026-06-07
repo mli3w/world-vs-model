@@ -171,6 +171,15 @@ Semi-finalists → Finalists → Champion, read off the reach-round probabilitie
 *model's* probabilities, shown in its violet colour — a picture of what the informed model expects,
 not a market consensus.
 
+**Scoring the bracket.** That projection is also kept honest. We register, pre-tournament, every
+side's forecast at *each* knockout rung (advance / reach-QF / SF / final / win) and score it two
+ways as results land. (1) A round-weighted **points race** — each side fills the bracket with its
+top-k teams per rung and a correctly placed team scores that rung's weight (×1 / ×4 / ×8 / ×16 / ×32);
+the market and the two models run head to head. (2) The rigorous companion: **Brier** at every rung
+(the same proper score as the books), because one bracket is a single high-variance draw while the
+Brier averages over all of them. Both come from the one pre-registered, timestamped ledger
+(`src/worldcup_register.py::bracket_scorecard`), so a skeptic can recompute either.
+
 ## 6. What's missing, and how we'd improve it (read this part)
 
 We are deliberately loud about the limitations — the credibility is in the caveats.
@@ -359,6 +368,7 @@ $$\text{Brier} = \frac{1}{n}\sum_i (p_i - o_i)^2, \qquad
 | Informed Elo model (Elo + Poisson + Dixon–Coles Monte Carlo) | `src/worldcup_fundamental.py`, `src/worldcup_sim.py` |
 | Official FIFA 2026 knockout slot table + projected bracket | `src/wc_bracket.py` |
 | Paper positions, mark-to-live, resolve PnL | `src/worldcup_positions.py` |
+| Active book rotation rules (sell / take-profit / cut / switch, cost-gated) | `src/wc_active.py` |
 | Conviction-weighted sizing + the four books + the HTML board | `src/worldcup_board.py` |
-| Pre-registered predictions, frozen books, the scorecard | `src/worldcup_register.py`, `ledger/` |
+| Pre-registered predictions, frozen books, scorecard + the **bracket scorecard** | `src/worldcup_register.py`, `ledger/` |
 | Record a played result → live re-forecast | `src/feed_result.py` |

@@ -23,6 +23,7 @@ def _paths(tmp):
     R.LIVE = os.path.join(tmp, "wc_live.jsonl")
     R.ELO_CORE = os.path.join(tmp, "wc_elo_core.jsonl")
     R.ELO_LIVE = os.path.join(tmp, "wc_elo_live.jsonl")
+    R.BRACKET_SCORE = os.path.join(tmp, "bracket_score.json")
     R.LEDGER = tmp
 
 

@@ -36,6 +36,7 @@ LIVE_LEDGER = os.path.join("ledger", "wc_live.jsonl")     # zero-knowledge Activ
 ELO_CORE_LEDGER = os.path.join("ledger", "wc_elo_core.jsonl")   # informed (Elo) Buy & Hold
 ELO_LIVE_LEDGER = os.path.join("ledger", "wc_elo_live.jsonl")   # informed (Elo) Active
 SCORECARD = os.path.join("ledger", "scorecard.json")      # the public, resolved-out-of-sample record
+BRACKET_SCORE = os.path.join("ledger", "bracket_score.json")  # the knockout-bracket scorecard
 RESULTS_PATH = os.path.join("ledger", "wc_results.json")  # played matches -> live Elo re-forecast
 
 # the live site (GitHub Pages). Used for ABSOLUTE og:image / og:url — social scrapers (LinkedIn in
@@ -237,6 +238,72 @@ def _scorecard_tiles(path=SCORECARD):
     return [("hit rate", f"{hit*100:.0f}%" if hit is not None else "—", f"{n_res} resolved"),
             ("lift vs chance", f"{lift:+.2f}x" if lift is not None else "—", "skill over base rate"),
             ("brier score", f"{brier:.3f}" if brier is not None else "—", "lower is better")]
+
+
+def _bracket_score_html(path=BRACKET_SCORE):
+    """The knockout-bracket scorecard: a round-weighted points race (market vs both models) plus,
+    per round, each side's headline pick and — once that round resolves — how many it got right.
+    Frozen pre-tournament; arms at the Round of 32. Returns '' if the scorecard file is absent."""
+    try:
+        import json as _json
+        with open(path) as f:
+            d = _json.load(f)
+    except Exception:
+        return ""
+    PLAYERS = [("market", "Market", "world"), ("zero_knowledge", "Zero-knowledge", "model"),
+               ("elo", "Informed · Elo", "eloc")]
+    pts = d.get("points", {})
+    n_res = d.get("n_resolved", 0)
+    pills = "".join(
+        f'<div class="bsp {cls}"><span class=bspl>{lbl}</span>'
+        f'<span class=bspv>{pts.get(key, 0)}</span><span class=bspu>pts</span></div>'
+        for key, lbl, cls in PLAYERS)
+    champ = d.get("champions", {})
+    champ_row = " · ".join(
+        f'{lbl}: {WM.flag_img(champ[key])}<b>{WM.code(champ[key])}</b>'
+        for key, lbl, _c in PLAYERS if champ.get(key))
+
+    def _chips(teams, cls):
+        return "".join(f'<span class="bsc {cls}">{WM.flag_img(t)}{WM.code(t)}</span>' for t in teams) or "—"
+
+    rows = []
+    for r in d.get("levels", []):
+        k = r["slots"]
+        agree = r.get("agree", k)
+        if r.get("resolved"):                              # scored: show each side's hit count
+            mid = "".join(
+                f'<span class="bshit {"pos" if r["hits"].get(key) else "neg"}" title="{lbl}">'
+                f'{r["hits"].get(key, 0)}/{k}</span>' for key, lbl, _c in PLAYERS)
+            mid = f'<td class=bsmid>{mid}</td>'
+        else:                                              # pre-result: where the brackets disagree
+            con = r.get("contested", {})
+            cm, ck = con.get("model", []), con.get("market", [])
+            diff = (f'{_chips(cm, "model")}{" vs " if cm and ck else ""}{_chips(ck, "world")}'
+                    if (cm or ck) else '<span class=sub>identical picks</span>')
+            mid = f'<td class=bsmid><span class=bsa>agree {agree}/{k}</span> {diff}</td>'
+        rows.append(f'<tr><td class=team>{r["label"]}</td><td class=sub>×{r["weight"]}</td>{mid}</tr>')
+
+    status = (f'<b>{n_res}</b> round{"s" if n_res != 1 else ""} scored — points are live'
+              if n_res else 'arms at the <b>Round of 32</b> (Jun 28) — frozen now, scored as it plays')
+    head = ('<th class=l>Round</th><th>Wt</th><th>Model vs market &amp; result</th>' if n_res
+            else '<th class=l>Round</th><th>Wt</th><th>Where the brackets disagree '
+                 '<span class=sub>(<span class=eloc>model</span> picks vs <span class=world>market</span> picks)</span></th>')
+    return (
+        '<h2 id=bracketscore>Bracket scorecard '
+        '<span class=sub>— scoring the knockout call, market vs model</span></h2>'
+        '<p class=note>The bracket above is a projection; this keeps it honest. Each side fills the '
+        'bracket from its <i>own</i> probabilities (the top teams per round); a correctly placed team '
+        'scores that round\'s weight — <b>Last-32 ×1 · QF ×4 · SF ×8 · Final ×16 · Champion ×32</b>. '
+        f'Forecasts are timestamped pre-tournament; {status}.</p>'
+        f'<div class=bsrace>{pills}</div>'
+        + (f'<p class=note>🏆 To lift the trophy — {champ_row} '
+           f'<span class=sub>(model, market and crowd can agree on the favourite yet score very '
+           f'differently on the <i>path</i>)</span></p>' if champ_row else "")
+        + f'<table class="bstab"><thead><tr>{head}</tr></thead><tbody>'
+        + "".join(rows) + '</tbody></table>'
+        '<p class="note sub">One bracket is a single, high-variance draw — the round-by-round '
+        '<a href="methodology.html">Brier scores</a> are the statistically meaningful verdict; this '
+        'points race is the legible one.</p>')
 
 
 def _kickoff_note(today=None):
@@ -859,6 +926,7 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
     elo_panes = (f'<div id=pane-eloc class=pane hidden>{eloc_money}<div class=scroll>{eloc_book}</div></div>'
                  f'<div id=pane-elol class=pane hidden>{elol_money}<div class=scroll>{elol_book}</div></div>'
                  ) if fundamental else ""
+    bracket_score_html = _bracket_score_html()               # the knockout bracket scorecard
     outcome_html = (_outcome_map(fundamental, positions, WM.WL.GROUPS_2026)
                     if (fundamental and positions) else "")
     fixtures_html = _fixtures(WM.WL.GROUPS_2026)
@@ -958,6 +1026,21 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  .tile{{background:var(--panel);border:1px solid var(--line2);border-radius:11px;padding:11px 14px}}
  .tile .tk{{color:var(--ink3);font-size:10px;text-transform:uppercase;letter-spacing:.4px}}
  .tile .tv{{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:2px 0}} .tile .tn{{color:var(--ink4);font-size:11px}}
+ .bsrace{{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 4px}}
+ .bsp{{flex:1 1 150px;border:1px solid var(--line2);border-radius:11px;padding:9px 12px;background:var(--panel);
+   display:flex;align-items:baseline;gap:7px;border-left:3px solid var(--ink3)}}
+ .bsp.world{{border-left-color:var(--world)}} .bsp.model{{border-left-color:var(--model)}} .bsp.eloc{{border-left-color:var(--elo)}}
+ .bsp .bspl{{font-size:11px;color:var(--ink2);font-weight:600;flex:1}} .bsp .bspv{{font-size:24px;font-weight:800;letter-spacing:-.5px}}
+ .bsp .bspu{{font-size:11px;color:var(--ink3)}}
+ table.bstab{{width:100%;margin:6px 0}} table.bstab th,table.bstab td{{padding:6px 7px;text-align:left;vertical-align:middle}}
+ table.bstab td.sub{{text-align:center;color:var(--ink3)}} table.bstab td.team{{font-weight:600;white-space:nowrap}}
+ table.bstab img.flag{{vertical-align:-2px;margin-right:2px}}
+ .bsmid{{font-size:12px}} .bsa{{color:var(--ink3);font-size:11px;margin-right:6px}}
+ .bsc{{display:inline-flex;align-items:center;gap:2px;font-weight:700;font-size:11px;border:1px solid var(--line2);
+   border-radius:6px;padding:1px 6px;margin:1px 3px 1px 0}}
+ .bsc.model{{border-color:var(--model);color:var(--ink)}} .bsc.world{{border-color:var(--world);color:var(--ink)}}
+ .bshit{{font-weight:700;font-size:12px;padding:1px 7px;border-radius:6px;border:1px solid var(--line2);margin-right:5px}}
+ .bshit.pos{{color:var(--pos);border-color:var(--pos)}} .bshit.neg{{color:var(--neg)}}
  .searchbar{{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line3);
    border-radius:12px;padding:2px 10px;margin:16px 0 4px}} .searchbar:focus-within{{border-color:var(--model)}}
  .find{{flex:1;width:auto;border:0;background:transparent;color:var(--ink);font-size:14px;padding:11px 2px}}
@@ -1165,6 +1248,7 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
      go less far) — a risk-free edge that can open on a quiet day, not just a matchday.</p><ul>{arbs}</ul></div>
  </div>
  {outcome_html}
+ {bracket_score_html}
  {fixtures_html}
  <h2 id=book>If you'd traded it <span class=sub>— a paper book to keep score, not advice</span></h2>
  <p class=note><b>A secondary, "what-if" view</b> — purely to put a number on the disagreements above.
