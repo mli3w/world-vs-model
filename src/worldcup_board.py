@@ -798,8 +798,9 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
             note = (f"{pref}{'Buy &amp; Hold' if held else 'Active Trading'} — "
                     + ("entered once at day 0, held to each market's resolution, marked to today's prices."
                        if held else
-                       "re-evaluated daily; rebalances when a market settles or a fresh edge clears the "
-                       "cost buffer — any day, not only matchdays. Open positions marked to today's prices."))
+                       "re-evaluated daily; it <b>cuts</b> a leg the model turns against, <b>rotates</b> "
+                       "into a clearly bigger edge, and <b>rides winners to settlement</b> — any day, not "
+                       "only matchdays. Open positions marked to today's prices."))
             cols, pills = ('<th data-c=4>Entry</th><th data-c=5>Now</th><th data-c=6>PnL</th>',
                            f'<span class=pill>realized <b class="{tt}">${tot["realized"]:+.2f}</b></span>'
                            f'<span class=pill>unrealized <b>${tot["unrealized"]:+.2f}</b></span>'
