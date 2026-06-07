@@ -941,6 +941,51 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
     fixtures_html = _fixtures(WM.WL.GROUPS_2026)
     poll_widget = _poll_widget(POLL_ENDPOINT)                 # bottom-left fan poll (only if configured)
 
+    # ---- the evidence, gathered into ONE segmented surface (board · vig · outcome · bracket ·
+    #      fixtures). Leading with the scoreboard and tucking the dense tables behind tabs is what
+    #      keeps the page from reading as a wall of numbers — only one view is on screen at a time.
+    legend_html = (
+        '<div class=legend><span class="dot" style="background:var(--world)"></span><b>Market</b> = live '
+        '<a href="https://polymarket.com/sports/world-cup" target=_blank rel="noopener noreferrer">Polymarket ↗</a> '
+        'prices, de-vigged so each round sums to its slots (32 advance · 8 QF · 4 SF · 2 final · 1 win). '
+        '<span class="dot" style="background:var(--model)"></span><b>Model</b> = pick one below. '
+        '<b>Edge</b> = model − market.'
+        '<button class=rst onclick="resetSort()" title="Reset table sorting">↺ reset sort</button></div>')
+    mhint_html = ('<div class=mhint>↔ swipe the table sideways · the QF/SF/final columns are hidden on '
+                  'small screens (tap a team for its full route)</div>')
+    board_pane = f'{legend_html}{model_toggle}<div class=scroll>{board}</div>{mhint_html}'
+    vig_pane = (
+        '<div class=grid><div><h3>The market’s hidden vig</h3>'
+        '<details class=exp><summary>How to read this</summary>'
+        '<p class=note>Add up every team’s price in a round and it sums to <i>more</i> than the real '
+        'number of slots (32 advance, 1 champion…). That excess is the market’s built-in margin — the '
+        '<b>overround</b>, or <b>vig</b>; a bigger overround means a fatter, less efficient market. We '
+        'strip it out (de-vig) before comparing anyone to the crowd.</p></details>'
+        '<table class="vig sortable"><thead><tr><th class="team l" data-c=0>Round</th>'
+        '<th data-c=1>Sums to</th><th data-c=2>Slots</th><th data-c=3>Overround</th></tr></thead>'
+        f'<tbody>{vig}</tbody></table></div>'
+        '<div><h3>Riskless inconsistencies <span class=sub>— checked daily; tradeable any day</span></h3>'
+        '<details class=exp><summary>What this means</summary>'
+        '<p class=note>Where the ladder’s own prices break nesting (a team priced likelier to go far '
+        'than to go less far) — a risk-free edge that can open on a quiet day, not just a matchday.</p>'
+        f'</details><ul>{arbs}</ul></div></div>')
+    segs = [("board", "⚽ The board", board_pane), ("vig", "💸 Vig &amp; gaps", vig_pane)]
+    if outcome_html:
+        segs.append(("outcome", "🔮 Outcome map", outcome_html))
+    if bracket_score_html:
+        segs.append(("bracket", "🏆 Bracket score", bracket_score_html))
+    segs.append(("fixtures", "📅 Fixtures", fixtures_html))
+    seg_btns = "".join(
+        f'<button class="sgb{" on" if i == 0 else ""}" id=sg-{k} onclick="seg(\'{k}\')">{lbl}</button>'
+        for i, (k, lbl, _b) in enumerate(segs))
+    seg_panes = "".join(
+        f'<div class="epane{"" if i == 0 else " hidden"}" id=ev-{k}>{b}</div>'
+        for i, (k, _l, b) in enumerate(segs))
+    evidence_html = (
+        '<section id=evidence><h2 id=board>The evidence '
+        '<span class=sub>— market vs model, one view at a time</span></h2>'
+        f'<div class=seg role=tablist>{seg_btns}</div>{seg_panes}</section>')
+
     icon = BRAND_ICON                                         # crisp tiny favicon
     mark = _brand_mark()                                      # the Canva emblem (brand + hero)
     desc = ("Can a model beat the World Cup market? A zero-knowledge model (price structure) and an "
@@ -1198,34 +1243,74 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
    .bracket,.blabels{{min-width:760px}}
    .bn{{padding:3px;gap:3px}} .bn img.flag{{width:15px;height:11px}} .bn .bc{{font-size:9px}}
  }}
+ /* ---- hero text block ---- */
+ .herotext{{flex:1 1 320px;min-width:260px}} .herotext h1{{margin:0 0 4px}}
+ /* ---- scoreboard: the three contestants, leading the page ---- */
+ .sboard{{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:10px 0 12px}}
+ @media(max-width:620px){{.sboard{{grid-template-columns:1fr}}}}
+ .sbc{{background:var(--panel);border:1px solid var(--line2);border-left:3px solid var(--ink3);
+   border-radius:11px;padding:11px 14px}}
+ .sbc.world{{border-left-color:var(--world)}} .sbc.model{{border-left-color:var(--model)}}
+ .sbc.elo{{border-left-color:var(--elo)}}
+ .sbc .sbk{{font-size:11px;font-weight:800;letter-spacing:.4px}}
+ .sbc.world .sbk{{color:var(--worldink)}} .sbc.model .sbk{{color:var(--modelink)}} .sbc.elo .sbk{{color:var(--eloink)}}
+ .sbc .sbv{{font-size:15px;font-weight:800;font-family:'Space Grotesk',Inter,sans-serif;margin:3px 0 1px}}
+ .sbc .sbn{{font-size:11px;color:var(--ink4)}}
+ /* ---- segmented control + evidence panes (one view at a time) ---- */
+ .seg{{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px}}
+ .sgb{{background:var(--panel);border:1px solid var(--line2);color:var(--ink3);border-radius:9px;
+   padding:8px 13px;cursor:pointer;font-size:13px;font-weight:600}}
+ .sgb:hover{{color:var(--ink2)}} .sgb.on{{color:var(--ink);border-color:var(--model);background:var(--modelwash)}}
+ .epane.hidden{{display:none}} #evidence h3{{margin-top:6px}}
+ /* ---- collapsible 'how to read this' explainers keep the default view clean ---- */
+ details.exp{{margin:6px 0 10px;border:1px solid var(--line2);border-radius:10px;background:var(--panel);padding:0 12px}}
+ details.exp>summary{{cursor:pointer;color:var(--ink2);font-size:12px;font-weight:600;padding:9px 0;list-style:none}}
+ details.exp>summary::-webkit-details-marker{{display:none}}
+ details.exp>summary::before{{content:'\\24D8  ';color:var(--ink4)}}
+ details.exp[open]>summary::before{{content:'\\25BE  '}}
+ details.exp .note,details.exp ul{{margin:0 0 10px}}
+ /* ---- the paper books, demoted to a clearly-secondary 'what-if' card ---- */
+ .secsec{{margin-top:30px;border:1px solid var(--line2);border-radius:14px;background:var(--panel2);padding:2px 16px 16px}}
+ .secsec h2{{border-bottom-color:var(--line3)}}
+ .eyebrow{{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;
+   color:var(--ink4);background:var(--raise);border:1px solid var(--line2);border-radius:20px;padding:2px 10px;margin:14px 0 0}}
+ /* searching focuses the board: drop the surrounding furniture so results stand alone */
+ body.searching #booksec,body.searching #fundamental,body.searching #evidence .seg,
+ body.searching .sboard{{display:none}}
 </style></head><body>
 <div class=top>
   <span class=brand><img src="{mark}" alt="World vs Model"> World <span class=vs>vs</span> Model <span class=bt>· World Cup 2026</span></span>
-  <nav class=nav><a href="#cards">Disagreements</a><a href="#board">Board</a><a href="#book">Book</a>
-    <a href="#fundamental">Elo model</a><a href="#outcome">Outcome map</a><a href="#record">Track record</a>
+  <nav class=nav><a href="#record">Scoreboard</a><a href="#cards">Disagreements</a><a href="#board">Evidence</a>
+    <a href="#book">Books</a><a href="#fundamental">Elo model</a>
     <a href="methodology.html">Method</a></nav>
   <button class=tgl id=th onclick="tg()" title="Toggle light / dark">☀️</button>
 </div>
 <div class=wrap>
  <div class=hero><img class=hmark src="{mark}" alt="World vs Model logo">
-   <h1>World Cup 2026 — Can a model beat the market?</h1>
+   <div class=herotext>
+     <h1>World Cup 2026 — Can a model beat the market?</h1>
+     <div class=sub2>Two transparent models take on the crowd across all 240 markets — one knows
+       <b style="color:var(--worldink)">zero football</b> (just price structure), one is
+       <b style="color:var(--eloink)">informed</b> (Elo ratings). We keep a public, out-of-sample scorecard.
+       <a href="methodology.html">How this works →</a> &nbsp;·&nbsp; <a href="glossary.html">Glossary &amp; references →</a></div></div>
    <span class=kick>{kick}</span></div>
- <div class=sub2>Two models take on the crowd across all 240 markets: one knows <b>zero football</b>
-   (<span style="color:var(--world)">just price structure</span>), one is <b>informed</b>
-   (<span style="color:var(--elo)">Elo ratings</span>). Can either beat the market — or is the crowd
-   unbeatable? We keep a public scorecard.
-   <a href="methodology.html">How this works →</a> &nbsp;·&nbsp; <a href="glossary.html">Glossary &amp; references →</a></div>
- <div class=byline>A research experiment by <a href="{AUTHOR_URL}" target=_blank rel="noopener noreferrer">{AUTHOR_NAME} ↗</a></div>
- <div style="margin-top:10px">
-   <span class=pill>updated <b>{stamp}</b></span>
+ <div class=byline>A research experiment by
+   <a href="{AUTHOR_URL}" target=_blank rel="noopener noreferrer">{AUTHOR_NAME} ↗</a>
+   &nbsp;·&nbsp; <span class=pill>updated <b>{stamp}</b></span>
    <span class=pill><b>240</b> markets · 48 teams</span>
-   <span class=pill><b>2</b> models vs the crowd</span>
-   <span class=pill>scored <b>vs the market</b></span>
-   <span class=pill>market data · <a href="https://polymarket.com/sports/world-cup" target=_blank rel="noopener noreferrer"><b>Polymarket</b> ↗</a></span>
- </div>
+   <span class=pill>scored <b>vs the market</b></span></div>
  {keydates}
- <section id=recordsec><h2 id=record>Track record <span class=sub>— we resolve every call out of sample and keep score</span></h2>
- <div class=record>{record}</div></section>
+ <section id=recordsec><h2 id=record>The scoreboard
+   <span class=sub>— Track record, scored out of sample as results land</span></h2>
+   <div class=sboard>
+     <div class="sbc world"><div class=sbk>THE MARKET</div><div class=sbv>the line to beat</div>
+       <div class=sbn>live Polymarket, de-vigged</div></div>
+     <div class="sbc model"><div class=sbk>ZERO-KNOWLEDGE</div><div class=sbv>price structure</div>
+       <div class=sbn>knows no football</div></div>
+     <div class="sbc elo"><div class=sbk>INFORMED · ELO</div><div class=sbv>ratings + simulation</div>
+       <div class=sbn>independent of the market</div></div>
+   </div>
+   <div class=record>{record}</div></section>
  <div class=searchbar><span class=ball2 onclick="focusFind()" title="Find a team">⚽</span>
    <input class=find id=find type=search placeholder="Find a country or trade — e.g. France, Japan, Brazil…"
      oninput="fq(this.value)" aria-label="Find a country or trade">
@@ -1235,48 +1320,29 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  <section id=disagree><h2 id=cards>The <span style="color:var(--world)">zero-knowledge</span> model's biggest disagreements</h2>
  {cardstrip}</section>
  {elo_intro_section}
- <h2 id=board>The board — each round, market vs model</h2>
- <div class=legend><span class="dot" style="background:var(--world)"></span><b>Market</b> = live
-   <a href="https://polymarket.com/sports/world-cup" target=_blank rel="noopener noreferrer">Polymarket ↗</a>
-   prices, de-vigged so each round sums to its slots (32 advance · 8 QF · 4 SF · 2 final · 1 win).
-   <span class="dot" style="background:var(--model)"></span><b>Model</b> = pick one below. <b>Edge</b> = model − market.
-   <button class=rst onclick="resetSort()" title="Reset table sorting">↺ reset sort</button></div>
- {model_toggle}
- <div class=scroll>{board}</div>
- <div class=mhint>↔ swipe the table sideways · the QF/SF/final columns are hidden on small screens (tap a team for its full route)</div>
- <div class=grid>
-  <div><h2>The market's hidden vig</h2>
-   <p class=note>Add up every team's price in a round and it sums to <i>more</i> than the real number of
-     slots (32 advance, 1 champion…). That excess is the market's built-in margin — the <b>overround</b>,
-     or <b>vig</b>. A bigger overround means a fatter, less efficient market; we strip it out (de-vig)
-     before comparing anyone to the crowd.</p>
-   <table class="vig sortable"><thead><tr><th class="team l" data-c=0>Round</th><th data-c=1>Sums to</th><th data-c=2>Slots</th><th data-c=3>Overround</th></tr></thead>
-   <tbody>{vig}</tbody></table></div>
-  <div><h2>Riskless inconsistencies <span class=sub>— checked daily; tradeable any day</span></h2>
-   <p class=note>Where the ladder's own prices break nesting (a team priced likelier to go far than to
-     go less far) — a risk-free edge that can open on a quiet day, not just a matchday.</p><ul>{arbs}</ul></div>
- </div>
- {outcome_html}
- {bracket_score_html}
- {fixtures_html}
- <h2 id=book>If you'd traded it <span class=sub>— a paper book to keep score, not advice</span></h2>
- <p class=note><b>A secondary, "what-if" view</b> — purely to put a number on the disagreements above.
-   No real money: a $1,000 <i>paper</i> book, conviction-weighted and dollar-neutral. Edges are shown
-   <b>net of a ~{half_spread_c:.0f}c half-spread</b> — a gap that doesn't clear the cost to trade it is
-   sized to zero (that half-spread is the <b>cost buffer</b>). <b>Buy &amp; Hold</b> enters once at day 0
-   and holds to resolution; <b>Active Trading</b> is re-evaluated daily and rebalances whenever a market
-   settles or a fresh edge clears that buffer — any day, not only matchdays (a riskless inconsistency is
-   the clearest example). <a href="methodology.html">Methodology →</a></p>
- <div style="margin:0 0 10px"><span class=pill>paper bankroll <b>${bankroll:,.0f}</b></span>
-   <span class=hint>👇 each book below shows its <b>own</b> capital at risk &amp; max ↑/↓</span></div>
- <div class=tabs role=tablist>
-   <button class="tab on" id=tb-core onclick="tab('core')">🤝 Buy &amp; Hold <span class=sub>zero-knowledge, held</span></button>
-   <button class="tab" id=tb-live onclick="tab('live')">🔄 Active Trading <span class=sub>zero-knowledge, daily</span></button>
-   {elo_tabs}
- </div>
- <div id=pane-core class=pane>{core_money}<div class=scroll>{core_book}</div></div>
- <div id=pane-live class=pane hidden>{live_money}<div class=scroll>{live_book}</div>{timeline}</div>
- {elo_panes}
+ {evidence_html}
+ <section id=booksec class=secsec>
+   <span class=eyebrow>Secondary · what-if</span>
+   <h2 id=book>If you'd traded it <span class=sub>— a paper book to keep score, not advice</span></h2>
+   <details class=exp><summary>How the paper books work</summary>
+   <p class=note><b>A secondary, "what-if" view</b> — purely to put a number on the disagreements above.
+     No real money: a $1,000 <i>paper</i> book, conviction-weighted and dollar-neutral. Edges are shown
+     <b>net of a ~{half_spread_c:.0f}c half-spread</b> — a gap that doesn't clear the cost to trade it is
+     sized to zero (that half-spread is the <b>cost buffer</b>). <b>Buy &amp; Hold</b> enters once at day 0
+     and holds to resolution; <b>Active Trading</b> is re-evaluated daily and rebalances whenever a market
+     settles or a fresh edge clears that buffer — any day, not only matchdays (a riskless inconsistency is
+     the clearest example). <a href="methodology.html">Methodology →</a></p></details>
+   <div style="margin:0 0 10px"><span class=pill>paper bankroll <b>${bankroll:,.0f}</b></span>
+     <span class=hint>👇 each book below shows its <b>own</b> capital at risk &amp; max ↑/↓</span></div>
+   <div class=tabs role=tablist>
+     <button class="tab on" id=tb-core onclick="tab('core')">🤝 Buy &amp; Hold <span class=sub>zero-knowledge, held</span></button>
+     <button class="tab" id=tb-live onclick="tab('live')">🔄 Active Trading <span class=sub>zero-knowledge, daily</span></button>
+     {elo_tabs}
+   </div>
+   <div id=pane-core class=pane>{core_money}<div class=scroll>{core_book}</div></div>
+   <div id=pane-live class=pane hidden>{live_money}<div class=scroll>{live_book}</div>{timeline}</div>
+   {elo_panes}
+ </section>
  <div class=about><img class=amark src="{mark}" alt="">
    <div><b>About.</b> A solo research &amp; education project by
    <a href="{AUTHOR_URL}" target=_blank rel="noopener noreferrer">{AUTHOR_NAME} ↗</a> — an open test of
@@ -1317,11 +1383,14 @@ function fq(v){{v=(v||'').trim().toLowerCase();var any=false;
   var n=document.getElementById('nores');if(n)n.hidden=!(v&&!any);
   var c=document.getElementById('clr');if(c)c.hidden=!v;
   document.body.classList.toggle('searching',!!v);   // collapse the marketing sections so results show
+  if(v&&typeof seg==='function')seg('board');        // make sure the board is the visible evidence view
   if(v){{var sb=document.querySelector('.searchbar'),t=sb.getBoundingClientRect().top;
     if(t<0||t>150)sb.scrollIntoView({{behavior:'smooth',block:'start'}});}}}}
 function clearFind(){{var f=document.getElementById('find');if(f){{f.value='';fq('');f.focus();}}}}
 function tab(n){{document.querySelectorAll('.pane').forEach(function(p){{p.hidden=p.id!=='pane-'+n;}});
   document.querySelectorAll('.tab').forEach(function(b){{b.classList.toggle('on',b.id==='tb-'+n);b.classList.remove('pulse');}});}}
+function seg(n){{document.querySelectorAll('.epane').forEach(function(p){{p.classList.toggle('hidden',p.id!=='ev-'+n);}});
+  document.querySelectorAll('.sgb').forEach(function(b){{b.classList.toggle('on',b.id==='sg-'+n);}});}}
 function setModel(wm){{
   var bt=document.querySelector('table.board');if(bt)bt.classList.toggle('elo',wm==='elo');
   document.querySelectorAll('table.board td.md').forEach(function(c){{
