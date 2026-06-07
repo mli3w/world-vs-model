@@ -250,8 +250,12 @@ def _bracket_score_html(path=BRACKET_SCORE):
             d = _json.load(f)
     except Exception:
         return ""
-    PLAYERS = [("market", "Market", "world"), ("zero_knowledge", "Zero-knowledge", "model"),
-               ("elo", "Informed · Elo", "eloc")]
+    # The bracket POINTS race is Market vs the Informed (Elo) model. The zero-knowledge model only
+    # re-shapes the market's own prices (a monotonic de-vig), so its *ranking* — and therefore its
+    # whole bracket — is identical to the market's by construction; it can't disagree on who goes how
+    # far. ZK instead earns its score on calibration (Brier, magnitudes), shown on the Methodology
+    # scorecard. So we show the one genuine bracket disagreement here.
+    PLAYERS = [("market", "Market", "world"), ("elo", "Informed · Elo", "eloc")]
     pts = d.get("points", {})
     n_res = d.get("n_resolved", 0)
     pills = "".join(
@@ -297,12 +301,15 @@ def _bracket_score_html(path=BRACKET_SCORE):
         f'Forecasts are timestamped pre-tournament; {status}.</p>'
         f'<div class=bsrace>{pills}</div>'
         + (f'<p class=note>🏆 To lift the trophy — {champ_row} '
-           f'<span class=sub>(model, market and crowd can agree on the favourite yet score very '
-           f'differently on the <i>path</i>)</span></p>' if champ_row else "")
+           f'<span class=sub>(they can agree on the favourite yet score very differently on the '
+           f'<i>path</i> there)</span></p>' if champ_row else "")
         + f'<table class="bstab"><thead><tr>{head}</tr></thead><tbody>'
         + "".join(rows) + '</tbody></table>'
-        '<p class="note sub">One bracket is a single, high-variance draw — the round-by-round '
-        '<a href="methodology.html">Brier scores</a> are the statistically meaningful verdict; this '
+        '<p class="note sub">Only the <span class=eloc>informed</span> model and the market appear '
+        'here: the <span class=model>zero-knowledge</span> model just re-shapes the market\'s own '
+        'prices, so its bracket is <i>identical to the market\'s</i> by construction — it competes on '
+        'calibration (Brier), not on picks. And one bracket is a single high-variance draw, so the '
+        'round-by-round <a href="methodology.html">Brier scores</a> are the meaningful verdict; this '
         'points race is the legible one.</p>')
 
 

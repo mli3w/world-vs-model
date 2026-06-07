@@ -185,10 +185,15 @@ not a market consensus.
 **Scoring the bracket.** That projection is also kept honest. We register, pre-tournament, every
 side's forecast at *each* knockout rung (advance / reach-QF / SF / final / win) and score it two
 ways as results land. (1) A round-weighted **points race** — each side fills the bracket with its
-top-k teams per rung and a correctly placed team scores that rung's weight (×1 / ×4 / ×8 / ×16 / ×32);
-the market and the two models run head to head. (2) The rigorous companion: **Brier** at every rung
-(the same proper score as the books), because one bracket is a single high-variance draw while the
-Brier averages over all of them. Both come from the one pre-registered, timestamped ledger
+top-k teams per rung and a correctly placed team scores that rung's weight (×1 / ×4 / ×8 / ×16 / ×32).
+This race is **Informed (Elo) vs Market**: the zero-knowledge model only re-shapes the market's own
+prices with a *monotonic* favorite-longshot power, so its *ranking* — and therefore its whole bracket —
+is identical to the market's by construction; it cannot disagree about *who* goes how far, so showing
+it as a third bracket would just mirror the market. (2) The rigorous companion: **Brier** at every rung
+(the same proper score as the books) — and this is where the zero-knowledge model *does* score
+separately, because Brier grades probability *magnitudes*, which its power correction changes even when
+the ranking doesn't move. One bracket is a single high-variance draw while the Brier averages over all
+of them. Both come from the one pre-registered, timestamped ledger
 (`src/worldcup_register.py::bracket_scorecard`), so a skeptic can recompute either.
 
 ## 6. What's missing, and how we'd improve it (read this part)
