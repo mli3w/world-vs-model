@@ -467,9 +467,14 @@ def _poll_widget(endpoint):
     blob = r'''
 <style>
  #wvp{position:fixed;left:16px;bottom:16px;z-index:30;font-family:inherit}
- .wvp-pill{display:flex;align-items:center;gap:6px;border:1px solid var(--line2);background:var(--panel);
-   color:var(--ink);border-radius:22px;padding:9px 14px;font-size:13px;cursor:pointer;box-shadow:0 6px 22px rgba(0,0,0,.28)}
- .wvp-pill:hover{transform:translateY(-1px)} .wvp-pill span{color:var(--ink3)}
+ .wvp-pill{display:flex;align-items:center;gap:8px;border:1.5px solid var(--model);background:var(--panel);
+   color:var(--ink);border-radius:22px;padding:10px 15px;font-size:13.5px;cursor:pointer;
+   box-shadow:0 6px 22px rgba(0,0,0,.3);animation:wvp-glow 2.4s ease-in-out infinite}
+ .wvp-pill:hover{transform:translateY(-1px);animation:none;box-shadow:0 9px 28px rgba(0,0,0,.4)}
+ .wvp-go{background:var(--model);color:#fff;border-radius:7px;padding:2px 9px;font-weight:700;font-size:12px}
+ @keyframes wvp-glow{0%,100%{box-shadow:0 6px 22px rgba(0,0,0,.3),0 0 0 0 rgba(79,124,232,.55)}
+   55%{box-shadow:0 6px 22px rgba(0,0,0,.3),0 0 0 8px rgba(79,124,232,0)}}
+ @media(prefers-reduced-motion:reduce){.wvp-pill{animation:none}}
  .wvp-card{position:fixed;left:16px;bottom:16px;width:320px;max-width:calc(100vw - 32px);background:var(--panel);
    border:1px solid var(--line2);border-radius:14px;padding:13px 14px;box-shadow:0 14px 40px rgba(0,0,0,.4)}
  .wvp-hd{display:flex;justify-content:space-between;align-items:center;font-size:14px;margin-bottom:3px}
@@ -501,7 +506,7 @@ def _poll_widget(endpoint):
  @media(max-width:600px){.wvp-card{width:calc(100vw - 32px)}}
 </style>
 <div id="wvp">
- <button class="wvp-pill" id="wvp-pill">&#128499;&#65039; <b>Who wins?</b> <span>vote</span></button>
+ <button class="wvp-pill" id="wvp-pill">&#128499;&#65039; <b>Who wins the Cup?</b> <span class="wvp-go">Vote</span></button>
  <div class="wvp-card" id="wvp-card" hidden>
   <div class="wvp-hd"><b>Who wins the World Cup 2026?</b><button class="wvp-x" id="wvp-x" aria-label="close">&times;</button></div>
   <div class="wvp-sub">A non-binding fan poll &mdash; not betting. See how the crowd lines up against the model and the market.</div>
