@@ -130,6 +130,24 @@ def group_positions(groups=None, n_sims=20000, seed=0, group_shrink=GROUP_SHRINK
     return {_norm(t): p for t, p in pos.items()}
 
 
+def fundamental_paths(groups=None, n_sims=20000, seed=0, group_shrink=GROUP_SHRINK,
+                      ko_shrink=KO_SHRINK, rating_sd=RATING_SD, results=None, top_finals=8):
+    """Joint-path outcomes from the same engine as fundamental_ladder: each team's EXIT-round
+    distribution (`depth`), the champion distribution (`champions`), and the most-likely FINAL
+    pairings (`finals`). Keyed by NORMALIZED team names so it aligns with the board's ladder.
+    `results` re-forecasts live (same conditioning as fundamental_ladder)."""
+    base, known = apply_results(results)
+    P = W.monte_carlo_paths(groups or GROUPS_2026, ratings(group_shrink, base=base), n_sims=n_sims,
+                            seed=seed, qualify=2, n_best_third=8,
+                            ko_ratings=ratings(ko_shrink, base=base),
+                            known=known or None, rating_sd=rating_sd, top_finals=top_finals)
+    return dict(
+        depth={_norm(t): v for t, v in P["depth"].items()},
+        champions={_norm(t): v for t, v in P["champions"].items()},
+        finals=[(_norm(a), _norm(b), p) for a, b, p in P["finals"]],
+    )
+
+
 def book_rows(market_ladder, model=None, n_sims=20000, seed=0, cost=0.0):
     """Per-(level, team) rows in worldcup_markets.book() format. `ours` is the FUNDAMENTAL model
     probability; `gross` = model - DE-VIGGED market (apples-to-apples probabilities, so the

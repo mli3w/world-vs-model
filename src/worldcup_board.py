@@ -522,7 +522,101 @@ def _fundamental_section(ladder, fundamental, bankroll):
         f'<div class=cards>{cards}</div>')
 
 
-def _outcome_map(fundamental, positions, groups, n_sims=20000):
+SURV_LABELS = ("Out in groups", "Round of 32", "Round of 16", "Quarter-final",
+               "Semi-final", "Runner-up", "Champion")
+
+
+def _title_race(groups, paths, top=12):
+    """The champion distribution as a sorted bar list, plus the single most-likely final (and how
+    rare even that is) — reframing the projection from a prediction into a distribution."""
+    nz = WM.WL._norm
+    ch = paths.get("champions", {})
+    field = [t for ts in groups.values() for t in ts]
+    teams = sorted(field, key=lambda t: -ch.get(nz(t), 0))[:top]
+    mx = max((ch.get(nz(t), 0) for t in teams), default=0) or 1
+    rows = "".join(
+        f'<div class=tracerow><span class=tk>{WM.flag_img(t)}<b>{WM.code(t)}</b></span>'
+        f'<span class=ttrack><span class=tfill style="width:{ch.get(nz(t), 0) / mx * 100:.1f}%"></span></span>'
+        f'<span class=tpc>{ch.get(nz(t), 0) * 100:.1f}%</span></div>' for t in teams)
+    fin = paths.get("finals", [])
+    fact = ""
+    if fin:
+        a, b, fp = fin[0]
+        fact = (f'<div class=finfact>📊 Most-likely final: <b>{_disp(a)}</b> vs <b>{_disp(b)}</b> '
+                f'&mdash; yet that exact pairing lands in only <b>{fp * 100:.1f}%</b> of the runs. '
+                f'No single outcome is likely; the spread <i>is</i> the forecast. These bars are the whole '
+                f'distribution &mdash; the bracket lower down is just its one most-likely path.</div>')
+    return fact + f'<div class=trace>{rows}</div>'
+
+
+def _survival(groups, paths):
+    """Each team's EXIT-round distribution as one stacked bar — the canonical 'how far does this
+    team go' view, faithful to all 20k runs (sorted deepest-first)."""
+    nz = WM.WL._norm
+    dep = paths.get("depth", {})
+    field = [t for ts in groups.values() for t in ts]
+
+    def edepth(t):
+        return sum(i * p for i, p in enumerate(dep.get(nz(t), [])))
+    rows = []
+    for t in sorted(field, key=edepth, reverse=True):
+        d = dep.get(nz(t), [])
+        if not d:
+            continue
+        segs = "".join(
+            f'<span class="seg s{i}" style="width:{p * 100:.2f}%" title="{SURV_LABELS[i]}: {p * 100:.0f}%"></span>'
+            for i, p in enumerate(d) if i < len(SURV_LABELS))
+        rows.append(
+            f'<div class=survrow><span class=survteam>{WM.flag_img(t)}<b>{WM.code(t)}</b></span>'
+            f'<span class=survbar>{segs}</span>'
+            f'<span class=survpc title="champion %">{(d[-1] if d else 0) * 100:.0f}%</span></div>')
+    legend = '<div class=survleg>' + "".join(
+        f'<span class=slg><span class="sdot s{i}"></span>{lab}</span>'
+        for i, lab in enumerate(SURV_LABELS)) + '</div>'
+    return legend + f'<div class=surv>{"".join(rows)}</div>'
+
+
+def _progression(fundamental, groups, top=10):
+    """The field narrowing round by round: each knockout round is a full bar (its slots), filled by
+    each leading team's share = P(reach that round). A fixed colour per contender turns it into a
+    'flow' — you watch the favourites' slivers widen as the field thins toward one champion."""
+    nz = WM.WL._norm
+    ROUNDS = [("advance", "Round of 32", 32), ("reach_R16", "Round of 16", 16),
+              ("reach_QF", "Quarter-finals", 8), ("reach_SF", "Semi-finals", 4),
+              ("reach_F", "Final", 2), ("win", "Champion", 1)]
+    PAL = ["#4f7ce8", "#3fd9a3", "#8b6dff", "#e9b949", "#f2876c", "#5aa0e0",
+           "#b1a1ff", "#63e6b8", "#f0bf49", "#9aa7c7"]
+    win = fundamental.get("win", {})
+    field = [t for ts in groups.values() for t in ts]
+    leaders = sorted(field, key=lambda t: -win.get(nz(t), 0))[:top]
+    color = {nz(t): PAL[i % len(PAL)] for i, t in enumerate(leaders)}
+    rows = []
+    for lvl, lab, slots in ROUNDS:
+        d = fundamental.get(lvl, {})
+        segs, used = [], 0.0
+        for t in leaders:
+            p = d.get(nz(t), 0.0)
+            if p <= 0:
+                continue
+            w = p / slots * 100
+            used += w
+            lbl = WM.code(t) if w >= 7 else ""
+            segs.append(f'<span class=pseg style="width:{w:.2f}%;background:{color[nz(t)]}" '
+                        f'title="{html.escape(_name(nz(t)))}: {p*100:.0f}% to reach the {lab}">{lbl}</span>')
+        rest = max(0.0, 100 - used)
+        if rest > 0.2:
+            segs.append(f'<span class="pseg field" style="width:{rest:.2f}%" title="the rest of the field">'
+                        f'{"field" if rest >= 12 else ""}</span>')
+        rows.append(f'<div class=progrow><span class=proglab>{lab}'
+                    f'<span class=progn>{slots} {"slot" if slots == 1 else "slots"}</span></span>'
+                    f'<span class=progbar>{"".join(segs)}</span></div>')
+    leg = "".join(f'<span class=plg><span class=pdot style="background:{color[nz(t)]}"></span>{WM.code(t)}</span>'
+                  for t in leaders)
+    return (f'<div class=progleg>{leg}<span class=plg><span class="pdot field"></span>field</span></div>'
+            f'<div class=prog>{"".join(rows)}</div>')
+
+
+def _outcome_map(fundamental, positions, groups, n_sims=20000, paths=None):
     """The informed (Elo) model's most-likely outcome: projected group standings (each team's
     finishing rank + advance %) and a knockout pyramid (most-likely QF-8 / SF-4 / Finalists /
     Champion). Probabilities are the MODEL's, not the market's."""
@@ -564,7 +658,8 @@ def _outcome_map(fundamental, positions, groups, n_sims=20000):
             return '<div class="bn bne">&mdash;</div>'
         p = fundamental.get(level, {}).get(nz(team), 0)
         return (f'<div class=bn title="{html.escape(_name(team))} · {p*100:.0f}% to reach this round">'
-                f'{WM.flag_img(team)}<span class=bc>{WM.code(team)}</span></div>')
+                f'{WM.flag_img(team)}<span class=bc>{WM.code(team)}</span>'
+                f'<span class=bnf style="width:{p*100:.0f}%"></span></div>')
 
     def _col(teams, level):
         return f'<div class=bcol>{"".join(_node(t, level) for t in teams)}</div>'
@@ -587,17 +682,34 @@ def _outcome_map(fundamental, positions, groups, n_sims=20000):
         + f'<div class="bcol bmid">{champ_node}</div>'
         + "".join(_col(_half(i, "R"), LV[i]) for i in range(4, -1, -1))
         + '</div></div>')
+    dist = ""
+    if paths:
+        dist = (
+            f'<h3>Title race <span class=sub>— P(win the cup) across {n_sims//1000}k simulations</span></h3>'
+            f'{_title_race(groups, paths)}'
+            f'<h3>How far each team goes <span class=sub>— the full distribution of where the model has '
+            f'each team bow out (champion % at right)</span></h3>'
+            f'{_survival(groups, paths)}'
+            f'<h3>The field narrows <span class=sub>— who fills each round\'s slots; one colour per '
+            f'contender, so each is a stream you can follow</span></h3>'
+            f'{_progression(fundamental, groups)}')
     return (
         f'<h2 id=outcome>Most likely outcome '
         f'<span class=sub>— the <span class=eloc>informed</span> model\'s projection</span></h2>'
         f'<p class=note>What the informed Elo model expects, from <b>{n_sims//1000}k simulations</b> of the '
-        f'verified bracket — these are the <b>model\'s</b> probabilities, not the market\'s. '
-        f'Projected group order is by the model; <span class=qd></span> top-2 qualify, '
-        f'<span class=md></span> 3rd may sneak through as a best-third.</p>'
+        f'verified bracket — these are the <b>model\'s</b> probabilities, not the market\'s. A 20k-run '
+        f'simulation is a <b>distribution</b>, not a single prediction, so we lead with the spread of '
+        f'outcomes and keep the single most-likely bracket for last.</p>'
+        f'{dist}'
         f'<h3>Projected group stage <span class=sub>(advance %)</span></h3>'
+        f'<p class=note><span class=qd></span> top-2 qualify, <span class=md></span> 3rd may sneak through '
+        f'as a best-third; order is the model\'s expected finish.</p>'
         f'<div class=groups>{"".join(gcards)}</div>'
-        f'<h3>Projected knockout bracket <span class=sub>— the model\'s projected standings poured into'
-        f' FIFA\'s official Round-of-32 slots (real fixtures, model placement)</span></h3>{bracket}'
+        f'<h3>The single most-likely bracket <span class=sub>— one path among many; node shading = % to '
+        f'reach that round, real FIFA R32 slots, model placement</span></h3>{bracket}'
+        f'<p class=note>This is the <b>modal</b> path — it plays out in only a minority of runs. The '
+        f'<b>title race</b> and <b>how-far-each-team-goes</b> charts above are the fuller, more honest read '
+        f'of the simulation.</p>'
         f'<div class=mhint>↔ swipe the bracket sideways to follow the path to the final</div>')
 
 
@@ -692,13 +804,14 @@ def _poll_widget(endpoint):
  function close(){show(card,false);show(pill,true);}
  pill.onclick=open; $("wvp-x").onclick=close; $("wvp-see").onclick=function(){load(true);};
  voteB.onclick=function(){ if(!chosen) return; voteB.classList.remove("on"); voteB.textContent="Voting...";
-  fetch(EP+"/vote",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({team:chosen})})
+  // text/plain keeps this a CORS "simple request" (no preflight); the Worker parses the body as JSON regardless.
+  fetch(EP+"/vote",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({team:chosen})})
    .then(function(r){return r.json();}).then(function(d){
      try{localStorage.setItem("wvm-vote-2026",chosen);}catch(e){} voted=chosen; render(d);
-   }).catch(function(){voteB.textContent="Vote";voteB.classList.add("on");res.hidden=false;res.innerHTML='<div class="wvp-key">Could not reach the poll &mdash; try again later.</div>';});
+   }).catch(function(){voteB.textContent="Vote";voteB.classList.add("on");res.hidden=false;res.innerHTML='<div class="wvp-key">Couldn’t reach the poll &mdash; a browser extension or your network/firewall may be blocking it. Try a different network, or allow this site, then reload.</div>';});
  };
  function load(force){ fetch(EP+"/results").then(function(r){return r.json();}).then(render)
-   .catch(function(){show(res,true);res.innerHTML='<div class="wvp-key">Could not load results yet.</div>';}); }
+   .catch(function(){show(res,true);res.innerHTML='<div class="wvp-key">Couldn’t load results &mdash; a browser extension or your network/firewall may be blocking the poll. Try a different network, or allow this site, then reload.</div>';}); }
  function render(d){
   show(pick,false); show(res,true);
   var counts=d.counts||{}, total=d.total||0;
@@ -728,7 +841,7 @@ def _poll_widget(endpoint):
 
 def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
                live_path=LIVE_LEDGER, fundamental=None, positions=None, history=None, liquidity=None,
-               elo_core_path=ELO_CORE_LEDGER, elo_live_path=ELO_LIVE_LEDGER):
+               elo_core_path=ELO_CORE_LEDGER, elo_live_path=ELO_LIVE_LEDGER, paths=None):
     ladder = ladder or WM.fetch_ladder()
     history = history or {}                                    # {team_norm: [win-price series]}
     liquidity = liquidity or {}                               # {team_norm: {vol, liq}} (USD)
@@ -1006,10 +1119,55 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
                  ) if fundamental else ""
     bracket_score_html = _bracket_score_html()               # the knockout bracket scorecard
     evolution_html = _evolution_html(fundamental) if fundamental else ""   # 'as it unfolds' (dormant pre-tournament)
-    outcome_html = (_outcome_map(fundamental, positions, WM.WL.GROUPS_2026)
+    outcome_html = (_outcome_map(fundamental, positions, WM.WL.GROUPS_2026, paths=paths)
                     if (fundamental and positions) else "")
     fixtures_html = _fixtures(WM.WL.GROUPS_2026)
     poll_widget = _poll_widget(POLL_ENDPOINT)                 # bottom-left fan poll (only if configured)
+
+    # ---- the evidence, gathered into ONE segmented surface (board · vig · outcome · bracket ·
+    #      fixtures). Leading with the scoreboard and tucking the dense tables behind tabs is what
+    #      keeps the page from reading as a wall of numbers — only one view is on screen at a time.
+    legend_html = (
+        '<div class=legend><span class="dot" style="background:var(--world)"></span><b>Market</b> = live '
+        '<a href="https://polymarket.com/sports/world-cup" target=_blank rel="noopener noreferrer">Polymarket ↗</a> '
+        'prices, de-vigged so each round sums to its slots (32 advance · 8 QF · 4 SF · 2 final · 1 win). '
+        '<span class="dot" style="background:var(--model)"></span><b>Model</b> = pick one below. '
+        '<b>Edge</b> = model − market.'
+        '<button class=rst onclick="resetSort()" title="Reset table sorting">↺ reset sort</button></div>')
+    mhint_html = ('<div class=mhint>↔ swipe the table sideways · the QF/SF/final columns are hidden on '
+                  'small screens (tap a team for its full route)</div>')
+    board_pane = f'{legend_html}{model_toggle}<div class=scroll>{board}</div>{mhint_html}'
+    vig_pane = (
+        '<div class=grid><div><h3>The market’s hidden vig</h3>'
+        '<details class=exp><summary>How to read this</summary>'
+        '<p class=note>Add up every team’s price in a round and it sums to <i>more</i> than the real '
+        'number of slots (32 advance, 1 champion…). That excess is the market’s built-in margin — the '
+        '<b>overround</b>, or <b>vig</b>; a bigger overround means a fatter, less efficient market. We '
+        'strip it out (de-vig) before comparing anyone to the crowd.</p></details>'
+        '<table class="vig sortable"><thead><tr><th class="team l" data-c=0>Round</th>'
+        '<th data-c=1>Sums to</th><th data-c=2>Slots</th><th data-c=3>Overround</th></tr></thead>'
+        f'<tbody>{vig}</tbody></table></div>'
+        '<div><h3>Riskless inconsistencies <span class=sub>— checked daily; tradeable any day</span></h3>'
+        '<details class=exp><summary>What this means</summary>'
+        '<p class=note>Where the ladder’s own prices break nesting (a team priced likelier to go far '
+        'than to go less far) — a risk-free edge that can open on a quiet day, not just a matchday.</p>'
+        f'</details><ul>{arbs}</ul></div></div>')
+    segs = [("board", "⚽ The board", board_pane), ("vig", "💸 Vig &amp; gaps", vig_pane)]
+    if outcome_html:
+        segs.append(("outcome", "🔮 Outcome map", outcome_html))
+    if bracket_score_html:
+        segs.append(("bracket", "🏆 Bracket score", bracket_score_html))
+    segs.append(("fixtures", "📅 Fixtures", fixtures_html))
+    seg_btns = "".join(
+        f'<button class="sgb{" on" if i == 0 else ""}" id=sg-{k} onclick="seg(\'{k}\')">{lbl}</button>'
+        for i, (k, lbl, _b) in enumerate(segs))
+    seg_panes = "".join(
+        f'<div class="epane{"" if i == 0 else " hidden"}" id=ev-{k}>{b}</div>'
+        for i, (k, _l, b) in enumerate(segs))
+    evidence_html = (
+        '<section id=evidence><h2 id=board>The evidence '
+        '<span class=sub>— market vs model, one view at a time</span></h2>'
+        f'<div class=seg role=tablist>{seg_btns}</div>{seg_panes}</section>')
 
     icon = BRAND_ICON                                         # crisp tiny favicon
     mark = _brand_mark()                                      # the Canva emblem (brand + hero)
@@ -1244,7 +1402,8 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  .bcol{{flex:1;display:flex;flex-direction:column;justify-content:space-around;gap:5px;padding:0 3px}}
  .bcol.bmid{{flex:1.25;justify-content:center}}
  .bn{{display:flex;align-items:center;justify-content:center;gap:5px;background:var(--panel);
-   border:1px solid var(--line2);border-radius:7px;padding:4px 5px;white-space:nowrap}}
+   border:1px solid var(--line2);border-radius:7px;padding:4px 5px;white-space:nowrap;position:relative;overflow:hidden}}
+ .bnf{{position:absolute;left:0;bottom:0;height:3px;background:var(--elo);opacity:.6}}
  .bn .bc{{font-weight:700;color:var(--ink2);font-size:11px;letter-spacing:.3px}}
  .bn.bne{{opacity:.35;color:var(--ink3)}}
  .bn img.flag{{margin:0}}
@@ -1252,6 +1411,37 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  .bchamp img.flag{{margin:0 auto 4px;display:block;width:33px;height:25px}}
  .bchamp .bcn{{font-weight:700;font-size:14px;font-family:'Space Grotesk',Inter,sans-serif}}
  .bchamp .bct{{color:var(--eloink);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px;margin-top:2px}}
+ /* ---- title race: champion distribution as sorted bars + the most-likely-final fact ---- */
+ .finfact{{background:var(--panel);border:1px solid var(--line2);border-left:3px solid var(--elo);
+   border-radius:10px;padding:9px 12px;font-size:12.5px;color:var(--ink2);margin:6px 0 12px;line-height:1.5}}
+ .finfact b{{color:var(--ink)}}
+ .trace,.surv{{margin:4px 0 6px}}
+ .tracerow,.survrow{{display:flex;align-items:center;gap:9px;margin:3px 0}}
+ .tk,.survteam{{width:62px;flex:none;font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px}}
+ .ttrack{{flex:1;height:14px;background:var(--bg);border:1px solid var(--line);border-radius:5px;overflow:hidden}}
+ .tfill{{height:100%;background:linear-gradient(90deg,#caa23a,#e9b949);border-radius:4px}}
+ .tpc,.survpc{{width:46px;flex:none;text-align:right;font-weight:700;font-size:12px;color:#e9b949;
+   font-variant-numeric:tabular-nums}}
+ /* ---- survival: each team's exit-round distribution as one stacked bar ---- */
+ .survbar{{flex:1;height:14px;display:flex;border-radius:4px;overflow:hidden;background:var(--bg);border:1px solid var(--line)}}
+ .survbar .seg{{height:100%}}
+ .slg{{display:flex;align-items:center;gap:5px}}
+ .sdot{{width:10px;height:10px;border-radius:2px;display:inline-block;flex:none}}
+ .s0{{background:var(--line3)}} .s1{{background:#3a5a9c}} .s2{{background:#4f7ce8}} .s3{{background:#5aa0e0}}
+ .s4{{background:#8b6dff}} .s5{{background:#c4ccdb}} .s6{{background:#e9b949}}
+ /* ---- progression funnel: who fills each round's slots, one colour per contender ---- */
+ .prog{{margin:4px 0 6px}}
+ .progrow{{display:flex;align-items:center;gap:9px;margin:3px 0}}
+ .proglab{{width:112px;flex:none;font-size:12px;font-weight:600;display:flex;flex-direction:column;line-height:1.25}}
+ .progn{{font-size:10px;color:var(--ink4);font-weight:400}}
+ .progbar{{flex:1;height:18px;display:flex;border-radius:4px;overflow:hidden;background:var(--bg);border:1px solid var(--line)}}
+ .pseg{{height:100%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;
+   color:#0c1424;overflow:hidden;white-space:nowrap}}
+ .pseg.field{{background:var(--line3);color:var(--ink3)}}
+ .progleg,.survleg{{display:flex;flex-wrap:wrap;gap:6px 12px;margin:8px 0;font-size:11px;color:var(--ink3)}}
+ .plg{{display:flex;align-items:center;gap:4px}}
+ .pdot{{width:10px;height:10px;border-radius:2px;display:inline-block;flex:none}} .pdot.field{{background:var(--line3)}}
+ @media(max-width:560px){{.tk,.survteam{{width:50px}} .proglab{{width:78px}}}}
  /* a one-line "swipe" hint, shown only on phones where something still scrolls sideways */
  .mhint{{display:none;color:var(--ink4);font-size:11px;font-style:italic;margin:3px 2px 0}}
  /* ---- mobile: NARROW the wide tables (hide non-essential columns) instead of forcing scroll ---- */
@@ -1270,34 +1460,75 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
    .bracket,.blabels{{min-width:760px}}
    .bn{{padding:3px;gap:3px}} .bn img.flag{{width:15px;height:11px}} .bn .bc{{font-size:9px}}
  }}
+ /* ---- hero text block ---- */
+ .herotext{{flex:1 1 320px;min-width:260px}} .herotext h1{{margin:0 0 4px}}
+ /* ---- scoreboard: the three contestants, leading the page ---- */
+ .sboard{{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:10px 0 12px}}
+ @media(max-width:620px){{.sboard{{grid-template-columns:1fr}}}}
+ .sbc{{background:var(--panel);border:1px solid var(--line2);border-left:3px solid var(--ink3);
+   border-radius:11px;padding:11px 14px}}
+ .sbc.world{{border-left-color:var(--world)}} .sbc.model{{border-left-color:var(--model)}}
+ .sbc.elo{{border-left-color:var(--elo)}}
+ .sbc .sbk{{font-size:11px;font-weight:800;letter-spacing:.4px}}
+ .sbc.world .sbk{{color:var(--worldink)}} .sbc.model .sbk{{color:var(--modelink)}} .sbc.elo .sbk{{color:var(--eloink)}}
+ .sbc .sbv{{font-size:15px;font-weight:800;font-family:'Space Grotesk',Inter,sans-serif;margin:3px 0 1px}}
+ .sbc .sbn{{font-size:11px;color:var(--ink4)}}
+ /* ---- segmented control + evidence panes (one view at a time) ---- */
+ .seg{{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px}}
+ .sgb{{background:var(--panel);border:1px solid var(--line2);color:var(--ink3);border-radius:9px;
+   padding:8px 13px;cursor:pointer;font-size:13px;font-weight:600}}
+ .sgb:hover{{color:var(--ink2)}} .sgb.on{{color:var(--ink);border-color:var(--model);background:var(--modelwash)}}
+ .epane.hidden{{display:none}} #evidence h3{{margin-top:6px}}
+ /* ---- collapsible 'how to read this' explainers keep the default view clean ---- */
+ details.exp{{margin:6px 0 10px;border:1px solid var(--line2);border-radius:10px;background:var(--panel);padding:0 12px}}
+ details.exp>summary{{cursor:pointer;color:var(--ink2);font-size:12px;font-weight:600;padding:9px 0;list-style:none}}
+ details.exp>summary::-webkit-details-marker{{display:none}}
+ details.exp>summary::before{{content:'\\24D8  ';color:var(--ink4)}}
+ details.exp[open]>summary::before{{content:'\\25BE  '}}
+ details.exp .note,details.exp ul{{margin:0 0 10px}}
+ /* ---- the paper books, demoted to a clearly-secondary 'what-if' card ---- */
+ .secsec{{margin-top:30px;border:1px solid var(--line2);border-radius:14px;background:var(--panel2);padding:2px 16px 16px}}
+ .secsec h2{{border-bottom-color:var(--line3)}}
+ .eyebrow{{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;
+   color:var(--ink4);background:var(--raise);border:1px solid var(--line2);border-radius:20px;padding:2px 10px;margin:14px 0 0}}
+ /* searching focuses the board: drop the surrounding furniture so results stand alone */
+ body.searching #booksec,body.searching #fundamental,body.searching #evidence .seg,
+ body.searching .sboard{{display:none}}
 </style></head><body>
 <div class=top>
   <span class=brand><img src="{mark}" alt="World vs Model"> World <span class=vs>vs</span> Model <span class=bt>· World Cup 2026</span></span>
-  <nav class=nav><a href="#cards">Disagreements</a><a href="#board">Board</a><a href="#book">Book</a>
-    <a href="#fundamental">Elo model</a><a href="#outcome">Outcome map</a><a href="#record">Track record</a>
+  <nav class=nav><a href="#record">Scoreboard</a><a href="#cards">Disagreements</a><a href="#board">Evidence</a>
+    <a href="#book">Books</a><a href="#fundamental">Elo model</a>
     <a href="methodology.html">Method</a></nav>
   <button class=tgl id=th onclick="tg()" title="Toggle light / dark">☀️</button>
 </div>
 <div class=wrap>
  <div class=hero><img class=hmark src="{mark}" alt="World vs Model logo">
-   <h1>World Cup 2026 — Can a model beat the market?</h1>
+   <div class=herotext>
+     <h1>World Cup 2026 — Can a model beat the market?</h1>
+     <div class=sub2>Two transparent models take on the crowd across all 240 markets — one knows
+       <b style="color:var(--worldink)">zero football</b> (just price structure), one is
+       <b style="color:var(--eloink)">informed</b> (Elo ratings). We keep a public, out-of-sample scorecard.
+       <a href="methodology.html">How this works →</a> &nbsp;·&nbsp; <a href="glossary.html">Glossary &amp; references →</a></div></div>
    <span class=kick>{kick}</span></div>
- <div class=sub2>Two models take on the crowd across all 240 markets: one knows <b>zero football</b>
-   (<span style="color:var(--world)">just price structure</span>), one is <b>informed</b>
-   (<span style="color:var(--elo)">Elo ratings</span>). Can either beat the market — or is the crowd
-   unbeatable? We keep a public scorecard.
-   <a href="methodology.html">How this works →</a> &nbsp;·&nbsp; <a href="glossary.html">Glossary &amp; references →</a></div>
- <div class=byline>A research experiment by <a href="{AUTHOR_URL}" target=_blank rel="noopener noreferrer">{AUTHOR_NAME} ↗</a></div>
- <div style="margin-top:10px">
-   <span class=pill>updated <b>{stamp}</b></span>
+ <div class=byline>A research experiment by
+   <a href="{AUTHOR_URL}" target=_blank rel="noopener noreferrer">{AUTHOR_NAME} ↗</a>
+   &nbsp;·&nbsp; <span class=pill>updated <b>{stamp}</b></span>
    <span class=pill><b>240</b> markets · 48 teams</span>
-   <span class=pill><b>2</b> models vs the crowd</span>
-   <span class=pill>scored <b>vs the market</b></span>
-   <span class=pill>market data · <a href="https://polymarket.com/sports/world-cup" target=_blank rel="noopener noreferrer"><b>Polymarket</b> ↗</a></span>
- </div>
+   <span class=pill>scored <b>vs the market</b></span></div>
  {keydates}
- <section id=recordsec><h2 id=record>Track record <span class=sub>— we resolve every call out of sample and keep score</span></h2>
- <div class=record>{record}</div></section>
+ <section id=recordsec><h2 id=record>The scoreboard
+   <span class=sub>— Track record, scored out of sample as results land</span></h2>
+   <div class=sboard>
+     <div class="sbc world"><div class=sbk>THE MARKET</div><div class=sbv>the line to beat</div>
+       <div class=sbn>live Polymarket, de-vigged</div></div>
+     <div class="sbc model"><div class=sbk>ZERO-KNOWLEDGE</div><div class=sbv>price structure</div>
+       <div class=sbn>knows no football</div></div>
+     <div class="sbc elo"><div class=sbk>INFORMED · ELO</div><div class=sbv>ratings + simulation</div>
+       <div class=sbn>independent of the market</div></div>
+   </div>
+   <div class=record>{record}</div></section>
+ {evolution_html}
  <div class=searchbar><span class=ball2 onclick="focusFind()" title="Find a team">⚽</span>
    <input class=find id=find type=search placeholder="Find a country or trade — e.g. France, Japan, Brazil…"
      oninput="fq(this.value)" aria-label="Find a country or trade">
@@ -1307,49 +1538,29 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  <section id=disagree><h2 id=cards>The <span style="color:var(--world)">zero-knowledge</span> model's biggest disagreements</h2>
  {cardstrip}</section>
  {elo_intro_section}
- <h2 id=board>The board — each round, market vs model</h2>
- <div class=legend><span class="dot" style="background:var(--world)"></span><b>Market</b> = live
-   <a href="https://polymarket.com/sports/world-cup" target=_blank rel="noopener noreferrer">Polymarket ↗</a>
-   prices, de-vigged so each round sums to its slots (32 advance · 8 QF · 4 SF · 2 final · 1 win).
-   <span class="dot" style="background:var(--model)"></span><b>Model</b> = pick one below. <b>Edge</b> = model − market.
-   <button class=rst onclick="resetSort()" title="Reset table sorting">↺ reset sort</button></div>
- {model_toggle}
- <div class=scroll>{board}</div>
- <div class=mhint>↔ swipe the table sideways · the QF/SF/final columns are hidden on small screens (tap a team for its full route)</div>
- <div class=grid>
-  <div><h2>The market's hidden vig</h2>
-   <p class=note>Add up every team's price in a round and it sums to <i>more</i> than the real number of
-     slots (32 advance, 1 champion…). That excess is the market's built-in margin — the <b>overround</b>,
-     or <b>vig</b>. A bigger overround means a fatter, less efficient market; we strip it out (de-vig)
-     before comparing anyone to the crowd.</p>
-   <table class="vig sortable"><thead><tr><th class="team l" data-c=0>Round</th><th data-c=1>Sums to</th><th data-c=2>Slots</th><th data-c=3>Overround</th></tr></thead>
-   <tbody>{vig}</tbody></table></div>
-  <div><h2>Riskless inconsistencies <span class=sub>— checked daily; tradeable any day</span></h2>
-   <p class=note>Where the ladder's own prices break nesting (a team priced likelier to go far than to
-     go less far) — a risk-free edge that can open on a quiet day, not just a matchday.</p><ul>{arbs}</ul></div>
- </div>
- {outcome_html}
- {bracket_score_html}
- {evolution_html}
- {fixtures_html}
- <h2 id=book>If you'd traded it <span class=sub>— a paper book to keep score, not advice</span></h2>
- <p class=note><b>A secondary, "what-if" view</b> — purely to put a number on the disagreements above.
-   No real money: a $1,000 <i>paper</i> book, conviction-weighted and dollar-neutral. Edges are shown
-   <b>net of a ~{half_spread_c:.0f}c half-spread</b> — a gap that doesn't clear the cost to trade it is
-   sized to zero (that half-spread is the <b>cost buffer</b>). <b>Buy &amp; Hold</b> enters once at day 0
-   and holds to resolution; <b>Active Trading</b> is re-evaluated daily and rebalances whenever a market
-   settles or a fresh edge clears that buffer — any day, not only matchdays (a riskless inconsistency is
-   the clearest example). <a href="methodology.html">Methodology →</a></p>
- <div style="margin:0 0 10px"><span class=pill>paper bankroll <b>${bankroll:,.0f}</b></span>
-   <span class=hint>👇 each book below shows its <b>own</b> capital at risk &amp; max ↑/↓</span></div>
- <div class=tabs role=tablist>
-   <button class="tab on" id=tb-core onclick="tab('core')">🤝 Buy &amp; Hold <span class=sub>zero-knowledge, held</span></button>
-   <button class="tab" id=tb-live onclick="tab('live')">🔄 Active Trading <span class=sub>zero-knowledge, daily</span></button>
-   {elo_tabs}
- </div>
- <div id=pane-core class=pane>{core_money}<div class=scroll>{core_book}</div></div>
- <div id=pane-live class=pane hidden>{live_money}<div class=scroll>{live_book}</div>{timeline}</div>
- {elo_panes}
+ {evidence_html}
+ <section id=booksec class=secsec>
+   <span class=eyebrow>Secondary · what-if</span>
+   <h2 id=book>If you'd traded it <span class=sub>— a paper book to keep score, not advice</span></h2>
+   <details class=exp><summary>How the paper books work</summary>
+   <p class=note><b>A secondary, "what-if" view</b> — purely to put a number on the disagreements above.
+     No real money: a $1,000 <i>paper</i> book, conviction-weighted and dollar-neutral. Edges are shown
+     <b>net of a ~{half_spread_c:.0f}c half-spread</b> — a gap that doesn't clear the cost to trade it is
+     sized to zero (that half-spread is the <b>cost buffer</b>). <b>Buy &amp; Hold</b> enters once at day 0
+     and holds to resolution; <b>Active Trading</b> is re-evaluated daily and rebalances whenever a market
+     settles or a fresh edge clears that buffer — any day, not only matchdays (a riskless inconsistency is
+     the clearest example). <a href="methodology.html">Methodology →</a></p></details>
+   <div style="margin:0 0 10px"><span class=pill>paper bankroll <b>${bankroll:,.0f}</b></span>
+     <span class=hint>👇 each book below shows its <b>own</b> capital at risk &amp; max ↑/↓</span></div>
+   <div class=tabs role=tablist>
+     <button class="tab on" id=tb-core onclick="tab('core')">🤝 Buy &amp; Hold <span class=sub>zero-knowledge, held</span></button>
+     <button class="tab" id=tb-live onclick="tab('live')">🔄 Active Trading <span class=sub>zero-knowledge, daily</span></button>
+     {elo_tabs}
+   </div>
+   <div id=pane-core class=pane>{core_money}<div class=scroll>{core_book}</div></div>
+   <div id=pane-live class=pane hidden>{live_money}<div class=scroll>{live_book}</div>{timeline}</div>
+   {elo_panes}
+ </section>
  <div class=about><img class=amark src="{mark}" alt="">
    <div><b>About.</b> A solo research &amp; education project by
    <a href="{AUTHOR_URL}" target=_blank rel="noopener noreferrer">{AUTHOR_NAME} ↗</a> — an open test of
@@ -1390,11 +1601,14 @@ function fq(v){{v=(v||'').trim().toLowerCase();var any=false;
   var n=document.getElementById('nores');if(n)n.hidden=!(v&&!any);
   var c=document.getElementById('clr');if(c)c.hidden=!v;
   document.body.classList.toggle('searching',!!v);   // collapse the marketing sections so results show
+  if(v&&typeof seg==='function')seg('board');        // make sure the board is the visible evidence view
   if(v){{var sb=document.querySelector('.searchbar'),t=sb.getBoundingClientRect().top;
     if(t<0||t>150)sb.scrollIntoView({{behavior:'smooth',block:'start'}});}}}}
 function clearFind(){{var f=document.getElementById('find');if(f){{f.value='';fq('');f.focus();}}}}
 function tab(n){{document.querySelectorAll('.pane').forEach(function(p){{p.hidden=p.id!=='pane-'+n;}});
   document.querySelectorAll('.tab').forEach(function(b){{b.classList.toggle('on',b.id==='tb-'+n);b.classList.remove('pulse');}});}}
+function seg(n){{document.querySelectorAll('.epane').forEach(function(p){{p.classList.toggle('hidden',p.id!=='ev-'+n);}});
+  document.querySelectorAll('.sgb').forEach(function(b){{b.classList.toggle('on',b.id==='sg-'+n);}});}}
 function setModel(wm){{
   var bt=document.querySelector('table.board');if(bt)bt.classList.toggle('elo',wm==='elo');
   document.querySelectorAll('table.board td.md').forEach(function(c){{
@@ -1733,10 +1947,11 @@ def main(argv=None):
     print(f"[board] win-price history: {len(history)} series · liquidity: {len(liquidity)} markets")
     fundamental = None if a.no_fundamental else WF.fundamental_ladder(n_sims=a.sims, results=results)
     positions = None if a.no_fundamental else WF.group_positions(n_sims=a.sims, results=results)
+    paths = None if a.no_fundamental else WF.fundamental_paths(n_sims=a.sims, results=results)
     os.makedirs(os.path.dirname(a.out) or ".", exist_ok=True)  # create the output dir (fresh checkout/CI)
     with open(a.out, "w", encoding="utf-8") as f:
         f.write(build_html(ladder=ladder, bankroll=a.bankroll, power=a.power, fundamental=fundamental,
-                           positions=positions, history=history, liquidity=liquidity))
+                           positions=positions, history=history, liquidity=liquidity, paths=paths))
     print(f"[board] wrote {a.out}  (open in a browser)")
     # copy the social card next to the board so the relative og:image resolves when hosted
     _og_src = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "wvm_og.png")

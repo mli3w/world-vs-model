@@ -84,3 +84,20 @@ def test_book_rows_are_two_sided_vs_a_market():
     edges = {r["team"]: r["edge"] for r in rows}
     assert edges[WL._norm("Spain")] < 0                                # model ~19% << 40% -> fade
     assert edges[WL._norm("France")] > 0                               # model ~9% > 5% -> buy
+
+
+def test_fundamental_paths_keys_are_normalized_and_consistent():
+    """fundamental_paths returns the joint-path outcomes keyed by normalized names, with the
+    champion distribution matching fundamental_ladder's win marginals."""
+    P = F.fundamental_paths(n_sims=2000, seed=0)
+    L = F.fundamental_ladder(n_sims=2000, seed=0)
+    assert WL._norm("Spain") in P["champions"] and WL._norm("Spain") in P["depth"]
+    assert abs(sum(P["champions"].values()) - 1.0) < 1e-9
+    for t, d in P["depth"].items():
+        assert abs(sum(d) - 1.0) < 1e-9                       # exit-round distribution per team
+    # same engine -> champion distribution tracks the ladder's win level (within Monte-Carlo noise).
+    for t, p in P["champions"].items():
+        assert abs(p - L["win"].get(t, 0.0)) < 0.03
+    # finals are normalized name pairs with a probability, most-likely first.
+    a, b, prob = P["finals"][0]
+    assert a == WL._norm(a) and b == WL._norm(b) and 0 < prob <= 1.0
