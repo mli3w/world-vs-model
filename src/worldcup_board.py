@@ -1498,7 +1498,7 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
 <div class=top>
   <span class=brand><img src="{mark}" alt="World vs Model"> World <span class=vs>vs</span> Model <span class=bt>· World Cup 2026</span></span>
   <nav class=nav><a href="#record">Scoreboard</a><a href="#cards">Disagreements</a><a href="#board">Evidence</a>
-    <a href="#book">Books</a><a href="#fundamental">Elo model</a>
+    <a href="#book">Books</a><a href="#fundamental">Informed model</a>
     <a href="methodology.html">Method</a></nav>
   <button class=tgl id=th onclick="tg()" title="Toggle light / dark">☀️</button>
 </div>
