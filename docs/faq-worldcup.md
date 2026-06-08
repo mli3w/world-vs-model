@@ -90,6 +90,28 @@ bigger win, or an upset, moves the numbers more), so the forecast re-forecasts i
 tournament unfolds. For the knockout phase we deliberately flatten the ratings toward the field
 average, because one-off matches are more random than a round-robin.
 
+### What does the model not account for?
+
+Plenty — and we would rather say so. The informed model is built from team-strength **ratings**, so it
+cannot see what the ratings don't already capture: **injuries, suspensions, who actually starts,
+motivation, fatigue and travel, the weather**, or a team peaking at just the right moment. It uses the
+official bracket, but the *best-third* assignments and the "no same-group rematch in the Round of 32"
+rule are handled as a close **approximation**, not the exact draw logic. And because the ratings are
+**public**, a model built on them is usually playing catch-up to a sharp market that already prices
+most of this in — beating it is *meant* to be hard. The zero-knowledge model is more limited still, by
+design: it adds no football knowledge at all, only a correction to the market's own prices. None of
+this is hidden — the [Methodology](methodology.html) page has a full "what's missing" section.
+
+### Does the forecast change as games are played?
+
+Yes. As results come in, the model **re-forecasts**: each played match updates both teams' Elo ratings
+(so later rounds reflect current form), completed group games are **held fixed** rather than
+re-simulated, and only the matches still to come are rolled forward. Crucially, the **pre-tournament
+forecast stays frozen** in an append-only ledger — that locked-in prediction is what gets scored, so
+the model can't quietly rewrite history to look good. The live board shows the updated view, and the
+*as-it-unfolds* strip near the top wakes up once the first games are played, highlighting what moved
+and which upsets landed.
+
 ## Can I trust the numbers?
 
 ### How do you keep score without cherry-picking?
