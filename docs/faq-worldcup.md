@@ -49,6 +49,47 @@ crowd. The board lets you switch between them.
 A single source: Polymarket's public Gamma and CLOB APIs. Each round's prices are **de-vigged**
 (rescaled to sum to the real number of slots) so they are comparable, apples-to-apples, with a model.
 
+### Which is better — the zero-knowledge or the informed model?
+
+Nobody knows yet — deciding that *is* the experiment, and they are built to be judged rather than
+assumed. There is an important subtlety, though. The zero-knowledge model only re-shapes the market's
+own prices, so it can never disagree with the market about *who* goes how far — its bracket is the
+market's bracket by construction. It earns its keep purely on **calibration**: are the probabilities
+the right *size*? The informed model is the only one that can genuinely disagree on the *ordering*,
+because it is built from Elo, independent of the market. So the two are scored on different strengths —
+out of sample, by Brier score and skill versus the market — and the live scorecard, not us, decides
+which (if either) beats the crowd.
+
+## How it works
+
+### How is the simulation done?
+
+The informed model plays the **entire tournament 20,000 times**. Each run:
+
+1. Plays the group stage as real **scorelines** — expected goals come from the two teams' Elo gap,
+   with a Dixon–Coles correction so draws and low scores look like real football, not coin flips.
+2. Ranks each group and pours the **top two (plus the eight best third-placed teams)** into the
+   **official FIFA 2026 bracket** — the real Round-of-32 slots, not an invented draw.
+3. Plays the knockouts **one match at a time** until a champion is crowned.
+
+Across all 20,000 runs we then tally how often each team reaches each round, wins the cup, and meets
+each opponent in the final — that is where the Outcome map's distributions come from. Two honest
+touches: the knockout rounds use a **flatter** set of ratings (a single match is far more of a
+coin-flip than a three-game group), and each run **nudges every team's rating by a random amount** to
+reflect that we don't know any team's true strength exactly — so the output is a genuine *spread* of
+outcomes, not false precision. The full formulas live on the [Methodology](methodology.html) page.
+
+### How do you calculate the Elo ratings?
+
+We don't invent them. The base numbers are real **World Football Elo ratings**
+([eloratings.net](https://www.eloratings.net/2026_World_Cup)), captured at a fixed date, plus a modest
+**home-advantage bonus** for the three co-hosts. From a rating gap, the chance team A beats team B is
+the standard Elo logistic — a **400-point edge means about 10-to-1 odds**. Once matches are played,
+each result updates *both* teams' ratings with a standard, **margin-of-victory-aware** Elo step (a
+bigger win, or an upset, moves the numbers more), so the forecast re-forecasts itself as the
+tournament unfolds. For the knockout phase we deliberately flatten the ratings toward the field
+average, because one-off matches are more random than a round-robin.
+
 ## Can I trust the numbers?
 
 ### How do you keep score without cherry-picking?
@@ -70,6 +111,15 @@ conviction-weighted and dollar-neutral, shown net of trading costs. No real mone
 a way to *size* the edges, not a portfolio.
 
 ## Using the site
+
+### How do I read the board?
+
+Each **row is a team**. The left block is the market's de-vigged price to clear each round — advance
+(last 32), reach the quarters, the semis, the final, and win it. The right block is the **win-the-cup**
+number three ways: the **market**, your chosen **model**, and the **edge** between them (model minus
+market). A **green edge** means the model rates the team *higher* than the market; **red** means lower.
+Use the toggle to switch the model column between **zero-knowledge** and **informed**, click any row to
+see the reasoning behind it, and click a column header to sort.
 
 ### How do I read the Outcome map?
 
