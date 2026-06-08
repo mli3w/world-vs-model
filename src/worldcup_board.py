@@ -752,7 +752,7 @@ def _poll_widget(endpoint):
  .wvp-bar img{width:18px;height:13px;border-radius:2px;flex:none}
  .wvp-bc{font-weight:700;width:34px;flex:none;color:var(--ink2)}
  .wvp-track{flex:1;height:16px;background:var(--bg);border:1px solid var(--line);border-radius:5px;position:relative;overflow:hidden}
- .wvp-fill{height:100%;background:#f0bf49;border-radius:4px}
+ .wvp-fill{display:block;height:100%;background:#f0bf49;border-radius:4px}
  .wvp-tick{position:absolute;top:-2px;width:2px;height:20px}
  .wvp-pc{width:34px;flex:none;text-align:right;font-weight:700;color:#f0bf49}
  .wvp-foot{font-size:10.5px;color:var(--ink3);margin-top:9px;display:flex;justify-content:space-between;align-items:center}
@@ -1419,12 +1419,12 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  .tracerow,.survrow{{display:flex;align-items:center;gap:9px;margin:3px 0}}
  .tk,.survteam{{width:62px;flex:none;font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px}}
  .ttrack{{flex:1;height:14px;background:var(--bg);border:1px solid var(--line);border-radius:5px;overflow:hidden}}
- .tfill{{height:100%;background:linear-gradient(90deg,#caa23a,#e9b949);border-radius:4px}}
+ .tfill{{display:block;height:100%;background:linear-gradient(90deg,#caa23a,#e9b949);border-radius:4px}}
  .tpc,.survpc{{width:46px;flex:none;text-align:right;font-weight:700;font-size:12px;color:#e9b949;
    font-variant-numeric:tabular-nums}}
  /* ---- survival: each team's exit-round distribution as one stacked bar ---- */
  .survbar{{flex:1;height:14px;display:flex;border-radius:4px;overflow:hidden;background:var(--bg);border:1px solid var(--line)}}
- .survbar .seg{{height:100%}}
+ .survbar .seg{{height:100%;display:block}}
  .slg{{display:flex;align-items:center;gap:5px}}
  .sdot{{width:10px;height:10px;border-radius:2px;display:inline-block;flex:none}}
  .s0{{background:var(--line3)}} .s1{{background:#3a5a9c}} .s2{{background:#4f7ce8}} .s3{{background:#5aa0e0}}
