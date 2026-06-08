@@ -623,13 +623,14 @@ def _poll_widget(endpoint):
  function close(){show(card,false);show(pill,true);}
  pill.onclick=open; $("wvp-x").onclick=close; $("wvp-see").onclick=function(){load(true);};
  voteB.onclick=function(){ if(!chosen) return; voteB.classList.remove("on"); voteB.textContent="Voting...";
-  fetch(EP+"/vote",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({team:chosen})})
+  // text/plain keeps this a CORS "simple request" (no preflight); the Worker parses the body as JSON regardless.
+  fetch(EP+"/vote",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({team:chosen})})
    .then(function(r){return r.json();}).then(function(d){
      try{localStorage.setItem("wvm-vote-2026",chosen);}catch(e){} voted=chosen; render(d);
-   }).catch(function(){voteB.textContent="Vote";voteB.classList.add("on");res.hidden=false;res.innerHTML='<div class="wvp-key">Could not reach the poll &mdash; try again later.</div>';});
+   }).catch(function(){voteB.textContent="Vote";voteB.classList.add("on");res.hidden=false;res.innerHTML='<div class="wvp-key">Couldn’t reach the poll &mdash; a privacy or ad blocker may be blocking it. Allow this site (or reload) and try again.</div>';});
  };
  function load(force){ fetch(EP+"/results").then(function(r){return r.json();}).then(render)
-   .catch(function(){show(res,true);res.innerHTML='<div class="wvp-key">Could not load results yet.</div>';}); }
+   .catch(function(){show(res,true);res.innerHTML='<div class="wvp-key">Couldn’t load results &mdash; a privacy or ad blocker may be blocking the poll. Allow this site, then reload.</div>';}); }
  function render(d){
   show(pick,false); show(res,true);
   var counts=d.counts||{}, total=d.total||0;
