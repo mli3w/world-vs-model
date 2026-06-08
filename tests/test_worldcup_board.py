@@ -309,5 +309,9 @@ def test_faq_page_renders_and_is_linked():
     assert 'href="index.html"' in h and 'href="methodology.html"' in h and 'href="glossary.html"' in h
     assert "Is this gambling?" in h and "not gambling" in h and "Singapore" in h   # plain-language + caveats
     assert "**" not in h and h.count("<table") == h.count("</table>")              # clean render
-    # the board itself links to the FAQ in its top nav.
-    assert 'href="faq.html"' in B.build_html(ladder=LADDER, bankroll=1000.0)
+    # the substantive how-it-works entries are present.
+    assert "How is the simulation done?" in h and "How do you calculate the Elo ratings?" in h
+    assert "How do I read the board?" in h and "Which is better" in h
+    # the board links to the FAQ in its top nav AND from the About block.
+    board = B.build_html(ladder=LADDER, bankroll=1000.0)
+    assert 'href="faq.html"' in board and "Common questions (FAQ)" in board

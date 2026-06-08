@@ -1566,6 +1566,7 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
    <a href="{AUTHOR_URL}" target=_blank rel="noopener noreferrer">{AUTHOR_NAME} ↗</a> — an open test of
    whether transparent models can beat a liquid market, with an honest public scorecard. Built in the
    open, scored against the crowd; <b>no positions, no capital, no advice</b>.
+   <a href="faq.html">Common questions (FAQ) →</a> &nbsp;·&nbsp;
    <a href="https://github.com/mli3w/world-vs-model" target=_blank rel="noopener noreferrer">Source &amp; method on GitHub ↗</a></div></div>
  <div class=disc>⚠️ <b>A research &amp; education experiment — NOT gambling, and NOT an encouragement
    to gamble.</b> We hold <b>no positions</b> and invest <b>no real capital</b>; every figure here is a
