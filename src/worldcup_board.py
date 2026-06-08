@@ -1499,7 +1499,7 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
   <span class=brand><img src="{mark}" alt="World vs Model"> World <span class=vs>vs</span> Model <span class=bt>· World Cup 2026</span></span>
   <nav class=nav><a href="#record">Scoreboard</a><a href="#cards">Disagreements</a><a href="#board">Evidence</a>
     <a href="#book">Books</a><a href="#fundamental">Informed model</a>
-    <a href="methodology.html">Method</a></nav>
+    <a href="methodology.html">Method</a><a href="faq.html">FAQ</a></nav>
   <button class=tgl id=th onclick="tg()" title="Toggle light / dark">☀️</button>
 </div>
 <div class=wrap>
@@ -1751,6 +1751,8 @@ METHODOLOGY_MD = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__
                               "docs", "methodology-worldcup.md")
 GLOSSARY_MD = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "docs", "glossary-worldcup.md")
+FAQ_MD = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                      "docs", "faq-worldcup.md")
 
 
 def _md_inline(s):
@@ -1917,16 +1919,26 @@ _ti();
 def build_methodology_html(md_path=METHODOLOGY_MD, board_href="worldcup_board.html"):
     """The methodology page. `board_href` must match the board's hosted filename (e.g. index.html)."""
     nav = (f'<a href="{board_href}">← Board</a>'
-           f'<a href="glossary.html" style="margin-left:14px">Glossary →</a>')
+           f'<a href="glossary.html" style="margin-left:14px">Glossary →</a>'
+           f'<a href="faq.html" style="margin-left:14px">FAQ →</a>')
     return _doc_page(md_path, "Methodology · World vs Model — World Cup 2026", "Methodology", nav)
 
 
 def build_glossary_html(md_path=GLOSSARY_MD, board_href="worldcup_board.html"):
     """The glossary & references page (plain-English jargon + the source papers)."""
     nav = (f'<a href="{board_href}">← Board</a>'
-           f'<a href="methodology.html" style="margin-left:14px">Methodology →</a>')
+           f'<a href="methodology.html" style="margin-left:14px">Methodology →</a>'
+           f'<a href="faq.html" style="margin-left:14px">FAQ →</a>')
     return _doc_page(md_path, "Glossary & references · World vs Model — World Cup 2026",
                      "Glossary &amp; references", nav)
+
+
+def build_faq_html(md_path=FAQ_MD, board_href="worldcup_board.html"):
+    """The FAQ page (plain-language answers — distinct from the methodology and glossary)."""
+    nav = (f'<a href="{board_href}">← Board</a>'
+           f'<a href="methodology.html" style="margin-left:14px">Methodology →</a>'
+           f'<a href="glossary.html" style="margin-left:14px">Glossary →</a>')
+    return _doc_page(md_path, "FAQ · World vs Model — World Cup 2026", "FAQ", nav)
 
 
 def main(argv=None):
@@ -1962,7 +1974,8 @@ def main(argv=None):
         print("[board] og image not found; skipped wvm_og.png")
     outdir = os.path.dirname(a.out) or "."
     for fname, builder in (("methodology.html", build_methodology_html),
-                           ("glossary.html", build_glossary_html)):
+                           ("glossary.html", build_glossary_html),
+                           ("faq.html", build_faq_html)):
         try:
             with open(os.path.join(outdir, fname), "w", encoding="utf-8") as f:
                 f.write(builder(board_href=os.path.basename(a.out)))

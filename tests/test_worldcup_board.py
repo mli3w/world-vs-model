@@ -299,3 +299,15 @@ def test_econ_is_a_bounded_binary_payoff():
     assert long_["stake"] == 3.0 and long_["max_down"] == -3.0 and long_["max_up"] == 7.0
     short_ = B._econ(shares=-10.0, entry=0.30)
     assert short_["stake"] == 7.0 and short_["max_down"] == -7.0 and short_["max_up"] == 3.0
+
+
+def test_faq_page_renders_and_is_linked():
+    """The FAQ page renders from markdown, carries the disclaimers, and is cross-linked; the board's
+    top nav links to it."""
+    h = B.build_faq_html(board_href="index.html")
+    assert "<!doctype html>" in h and "FAQ" in h and "data-theme" in h
+    assert 'href="index.html"' in h and 'href="methodology.html"' in h and 'href="glossary.html"' in h
+    assert "Is this gambling?" in h and "not gambling" in h and "Singapore" in h   # plain-language + caveats
+    assert "**" not in h and h.count("<table") == h.count("</table>")              # clean render
+    # the board itself links to the FAQ in its top nav.
+    assert 'href="faq.html"' in B.build_html(ladder=LADDER, bankroll=1000.0)
