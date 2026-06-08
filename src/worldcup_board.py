@@ -627,10 +627,10 @@ def _poll_widget(endpoint):
   fetch(EP+"/vote",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({team:chosen})})
    .then(function(r){return r.json();}).then(function(d){
      try{localStorage.setItem("wvm-vote-2026",chosen);}catch(e){} voted=chosen; render(d);
-   }).catch(function(){voteB.textContent="Vote";voteB.classList.add("on");res.hidden=false;res.innerHTML='<div class="wvp-key">Couldn’t reach the poll &mdash; a privacy or ad blocker may be blocking it. Allow this site (or reload) and try again.</div>';});
+   }).catch(function(){voteB.textContent="Vote";voteB.classList.add("on");res.hidden=false;res.innerHTML='<div class="wvp-key">Couldn’t reach the poll &mdash; a browser extension or your network/firewall may be blocking it. Try a different network, or allow this site, then reload.</div>';});
  };
  function load(force){ fetch(EP+"/results").then(function(r){return r.json();}).then(render)
-   .catch(function(){show(res,true);res.innerHTML='<div class="wvp-key">Couldn’t load results &mdash; a privacy or ad blocker may be blocking the poll. Allow this site, then reload.</div>';}); }
+   .catch(function(){show(res,true);res.innerHTML='<div class="wvp-key">Couldn’t load results &mdash; a browser extension or your network/firewall may be blocking the poll. Try a different network, or allow this site, then reload.</div>';}); }
  function render(d){
   show(pick,false); show(res,true);
   var counts=d.counts||{}, total=d.total||0;
