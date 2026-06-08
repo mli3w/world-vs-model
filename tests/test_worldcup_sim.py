@@ -148,3 +148,22 @@ def test_results_condition_the_forecast():
     assert fc["A4"]["advance"] < 0.01                     # lost all -> out
     table = T.rank_table("A")
     assert table[0]["team"] == "A1" and table[0]["Pts"] == 9
+
+
+def test_monte_carlo_paths_depth_champions_and_finals():
+    """The richer Monte-Carlo keeps the joint outcomes the marginal ladder discards: each team's
+    exit-round distribution (sums to 1), a champion distribution (sums to ~1), and final pairings."""
+    groups = {g: [f"{g}{i}" for i in range(1, 5)] for g in "ABCDEFGHIJKL"}   # 12 groups of 4
+    ratings = {t: 1500.0 + 40.0 * (4 - int(t[1])) for ts in groups.values() for t in ts}
+    P = W.monte_carlo_paths(groups, ratings, n_sims=1500, seed=0, qualify=2, n_best_third=8)
+    teams = [t for ts in groups.values() for t in ts]
+    for t in teams:
+        assert len(P["depth"][t]) == 7                       # group + R32..champ for a 32-team draw
+        assert abs(sum(P["depth"][t]) - 1.0) < 1e-9          # it's a probability distribution
+    assert abs(sum(P["champions"].values()) - 1.0) < 1e-9    # exactly one champion per run
+    # champion % must equal the last (champion) depth bucket, by construction.
+    for t in teams:
+        assert abs(P["champions"][t] - P["depth"][t][-1]) < 1e-9
+    assert P["finals"] and len(P["finals"][0]) == 3          # [(a, b, prob), ...], most-likely first
+    assert P["finals"] == sorted(P["finals"], key=lambda x: -x[2])
+    assert 0 < P["finals"][0][2] <= 1.0

@@ -255,6 +255,50 @@ def monte_carlo_ladder(groups, ratings, n_sims=20000, seed=0, qualify=2, n_best_
     return {lv: {t: cnt[lv][t] / n_sims for t in teams} for lv in levels}
 
 
+def monte_carlo_paths(groups, ratings, n_sims=20000, seed=0, qualify=2, n_best_third=0,
+                      home_for=None, known=None, ko_ratings=None, rating_sd=0.0, top_finals=8):
+    """Richer Monte-Carlo that keeps the JOINT outcomes the marginal ladder throws away. Same
+    ratings / uncertainty knobs as monte_carlo_ladder. Returns a dict:
+      depth     : {team: [p_group, p_R32, p_R16, p_QF, p_SF, p_runnerup, p_champ]} — the team's
+                  EXIT-round distribution (where it bows out), summing to 1. The natural input for
+                  a 'how far does each team go' survival bar.
+      champions : {team: P(win the cup)} (the champion distribution).
+      finals    : [(a, b, prob), ...] the `top_finals` most-likely FINAL pairings (names sorted),
+                  i.e. how often each specific final actually occurs across the runs.
+    Buckets are sized from the bracket: group + one per knockout round + champion."""
+    import collections
+    rng = np.random.default_rng(seed)
+    ko = ko_ratings if ko_ratings is not None else ratings
+    teams = [t for ts in groups.values() for t in ts]
+    n_qual = qualify * len(groups) + n_best_third            # 2026: 2*12 + 8 = 32
+    rounds = max(n_qual, 1).bit_length() - 1                 # 5 knockout rounds for a 32-team draw
+    nb = rounds + 2                                          # group + R32..champ
+    depth = {t: [0] * nb for t in teams}
+    champ_cnt = {t: 0 for t in teams}
+    finals_cnt = collections.Counter()
+    for _ in range(n_sims):
+        if rating_sd:
+            eps = {t: rng.normal(0.0, rating_sd) for t in teams}
+            r_g = {t: ratings[t] + eps[t] for t in teams}
+            r_k = {t: ko[t] + eps[t] for t in teams}
+        else:
+            r_g, r_k = ratings, ko
+        seeds, quals = _group_seeds(groups, r_g, rng, qualify, n_best_third, home_for, known)
+        champ, wins = knockout_run(seeds, r_k, rng, home_for=home_for)
+        qset = set(quals)
+        for t in teams:
+            depth[t][0 if t not in qset else min(wins.get(t, 0), rounds) + 1] += 1
+        champ_cnt[champ] += 1
+        runner = next((t for t, w in wins.items() if w == rounds - 1), None)   # the losing finalist
+        if runner is not None:
+            finals_cnt[tuple(sorted((champ, runner)))] += 1
+    return dict(
+        depth={t: [c / n_sims for c in depth[t]] for t in teams},
+        champions={t: champ_cnt[t] / n_sims for t in teams},
+        finals=[(a, b, c / n_sims) for (a, b), c in finals_cnt.most_common(top_finals)],
+    )
+
+
 def monte_carlo_positions(groups, ratings, n_sims=20000, seed=0, home_for=None, known=None,
                           rating_sd=0.0):
     """Per-team probability of FINISHING 1st / 2nd / 3rd / 4th in its group, by tallying the

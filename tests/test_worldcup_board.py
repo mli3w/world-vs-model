@@ -247,13 +247,20 @@ def test_outcome_map_renders_groups_and_knockout_pyramid():
     ladder["win"] = {WL._norm("Spain"): 0.18, WL._norm("France"): 0.10}
     fund = WF.fundamental_ladder(n_sims=1500, seed=0)
     pos = WF.group_positions(n_sims=1500, seed=0)
-    h = B.build_html(ladder=ladder, fundamental=fund, positions=pos)
+    paths = WF.fundamental_paths(n_sims=1500, seed=0)
+    h = B.build_html(ladder=ladder, fundamental=fund, positions=pos, paths=paths)
     assert "id=outcome" in h and "Projected group stage" in h    # the map section
     assert "Group A" in h and "Group L" in h                     # all 12 groups
-    # the knockout BRACKET (converging tree of flags/codes to a centre champion)
-    assert "Projected knockout bracket" in h and 'class=bracket' in h
+    # the knockout BRACKET (converging tree of flags/codes to a centre champion), framed as one path
+    assert "most-likely bracket" in h and 'class=bracket' in h
     assert 'class=bn' in h and 'class=bchamp' in h and "🏆" in h
     assert 'class=blabels' in h                                  # the R16/QF/SF/Final round labels
+    # the distribution-first views from the 20k sim: champion bars + each team's exit-round bar
+    assert "Title race" in h and 'class=trace' in h and 'class=tfill' in h
+    assert "How far each team goes" in h and 'class=surv' in h and 'class="seg s6"' in h
+    assert "Most-likely final" in h                              # the finalist fact callout
+    # the bracket still renders (degrades gracefully) when the richer paths aren't supplied.
+    assert "most-likely bracket" in B.build_html(ladder=ladder, fundamental=fund, positions=pos)
     # without positions the map is absent (data-free callers stay fast).
     assert "id=outcome" not in B.build_html(ladder=ladder, fundamental=fund)
 
