@@ -535,7 +535,7 @@ def _title_race(groups, paths, top=12):
     teams = sorted(field, key=lambda t: -ch.get(nz(t), 0))[:top]
     mx = max((ch.get(nz(t), 0) for t in teams), default=0) or 1
     rows = "".join(
-        f'<div class=tracerow><span class=tk>{WM.flag_img(t)}<b>{WM.code(t)}</b></span>'
+        f'<div class=tracerow><span class=trk>{WM.flag_img(t)}<b>{WM.code(t)}</b></span>'
         f'<span class=ttrack><span class=tfill style="width:{ch.get(nz(t), 0) / mx * 100:.1f}%"></span></span>'
         f'<span class=tpc>{ch.get(nz(t), 0) * 100:.1f}%</span></div>' for t in teams)
     fin = paths.get("finals", [])
@@ -564,7 +564,7 @@ def _survival(groups, paths):
         if not d:
             continue
         segs = "".join(
-            f'<span class="seg s{i}" style="width:{p * 100:.2f}%" title="{SURV_LABELS[i]}: {p * 100:.0f}%"></span>'
+            f'<span class="sv s{i}" style="width:{p * 100:.2f}%" title="{SURV_LABELS[i]}: {p * 100:.0f}%"></span>'
             for i, p in enumerate(d) if i < len(SURV_LABELS))
         rows.append(
             f'<div class=survrow><span class=survteam>{WM.flag_img(t)}<b>{WM.code(t)}</b></span>'
@@ -1417,14 +1417,14 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  .finfact b{{color:var(--ink)}}
  .trace,.surv{{margin:4px 0 6px}}
  .tracerow,.survrow{{display:flex;align-items:center;gap:9px;margin:3px 0}}
- .tk,.survteam{{width:62px;flex:none;font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px}}
+ .trk,.survteam{{width:62px;flex:none;font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px}}
  .ttrack{{flex:1;height:14px;background:var(--bg);border:1px solid var(--line);border-radius:5px;overflow:hidden}}
  .tfill{{display:block;height:100%;background:linear-gradient(90deg,#caa23a,#e9b949);border-radius:4px}}
  .tpc,.survpc{{width:46px;flex:none;text-align:right;font-weight:700;font-size:12px;color:#e9b949;
    font-variant-numeric:tabular-nums}}
  /* ---- survival: each team's exit-round distribution as one stacked bar ---- */
  .survbar{{flex:1;height:14px;display:flex;border-radius:4px;overflow:hidden;background:var(--bg);border:1px solid var(--line)}}
- .survbar .seg{{height:100%;display:block}}
+ .survbar .sv{{height:100%;display:block}}
  .slg{{display:flex;align-items:center;gap:5px}}
  .sdot{{width:10px;height:10px;border-radius:2px;display:inline-block;flex:none}}
  .s0{{background:var(--line3)}} .s1{{background:#3a5a9c}} .s2{{background:#4f7ce8}} .s3{{background:#5aa0e0}}
@@ -1441,7 +1441,7 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  .progleg,.survleg{{display:flex;flex-wrap:wrap;gap:6px 12px;margin:8px 0;font-size:11px;color:var(--ink3)}}
  .plg{{display:flex;align-items:center;gap:4px}}
  .pdot{{width:10px;height:10px;border-radius:2px;display:inline-block;flex:none}} .pdot.field{{background:var(--line3)}}
- @media(max-width:560px){{.tk,.survteam{{width:50px}} .proglab{{width:78px}}}}
+ @media(max-width:560px){{.trk,.survteam{{width:50px}} .proglab{{width:78px}}}}
  /* a one-line "swipe" hint, shown only on phones where something still scrolls sideways */
  .mhint{{display:none;color:var(--ink4);font-size:11px;font-style:italic;margin:3px 2px 0}}
  /* ---- mobile: NARROW the wide tables (hide non-essential columns) instead of forcing scroll ---- */
