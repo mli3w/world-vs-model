@@ -285,7 +285,7 @@ def test_outcome_map_renders_groups_and_knockout_pyramid():
     assert 'class=blabels' in h                                  # the R16/QF/SF/Final round labels
     # the distribution-first views from the 20k sim: champion bars + each team's exit-round bar
     assert "Title race" in h and 'class=trace' in h and 'class=tfill' in h
-    assert "How far each team goes" in h and 'class=surv' in h and 'class="seg s6"' in h
+    assert "How far each team goes" in h and 'class=surv' in h and 'class="sv s6"' in h
     assert "Most-likely final" in h                              # the finalist fact callout
     # the bracket still renders (degrades gracefully) when the richer paths aren't supplied.
     assert "most-likely bracket" in B.build_html(ladder=ladder, fundamental=fund, positions=pos)
