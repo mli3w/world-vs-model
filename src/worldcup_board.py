@@ -1213,7 +1213,18 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  .hmark{{width:50px;height:50px;border-radius:12px;flex:0 0 auto;box-shadow:0 2px 14px rgba(0,0,0,.35)}}
  @media(max-width:560px){{.hmark{{width:40px;height:40px;border-radius:10px}}}}
  .nav{{display:flex;gap:15px;margin-left:auto;font-size:13px}} .nav a{{color:var(--ink3);text-decoration:none}}
- .nav a:hover{{color:var(--ink)}} @media(max-width:720px){{.nav{{display:none}}}}
+ .nav a:hover{{color:var(--ink)}}
+ .burger{{display:none;margin-left:auto;background:var(--raise);border:1px solid var(--line3);color:var(--ink);
+   border-radius:8px;width:34px;height:30px;cursor:pointer;font-size:15px;line-height:1;
+   align-items:center;justify-content:center}}
+ @media(max-width:720px){{
+   .burger{{display:flex}}
+   .nav{{position:absolute;top:100%;left:0;right:0;margin:0;display:none;flex-direction:column;gap:0;
+     background:var(--bg);border-bottom:1px solid var(--line2);box-shadow:0 12px 26px rgba(0,0,0,.28);padding:4px 0}}
+   .top.open .nav{{display:flex}}
+   .nav a{{padding:12px 22px;font-size:15px;border-top:1px solid var(--line)}}
+ }}
+ @media(max-width:480px){{.brand .bt{{display:none}}}}
  .tgl{{background:var(--raise);border:1px solid var(--line3);color:var(--ink);border-radius:8px;
    width:32px;height:30px;cursor:pointer;font-size:14px}}
  h1{{font-size:25px;margin:18px 0 4px;letter-spacing:-.3px}} .sub2{{color:var(--ink3);font-size:13px;max-width:760px}}
@@ -1500,6 +1511,7 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
   <nav class=nav><a href="#record">Scoreboard</a><a href="#cards">Disagreements</a><a href="#board">Evidence</a>
     <a href="#book">Books</a><a href="#fundamental">Informed model</a>
     <a href="methodology.html">Method</a><a href="faq.html">FAQ</a></nav>
+  <button class=burger id=burger onclick="toggleMenu()" aria-label="Open menu" aria-expanded="false">☰</button>
   <button class=tgl id=th onclick="tg()" title="Toggle light / dark">☀️</button>
 </div>
 <div class=wrap>
@@ -1610,6 +1622,13 @@ function tab(n){{document.querySelectorAll('.pane').forEach(function(p){{p.hidde
   document.querySelectorAll('.tab').forEach(function(b){{b.classList.toggle('on',b.id==='tb-'+n);b.classList.remove('pulse');}});}}
 function seg(n){{document.querySelectorAll('.epane').forEach(function(p){{p.classList.toggle('hidden',p.id!=='ev-'+n);}});
   document.querySelectorAll('.sgb').forEach(function(b){{b.classList.toggle('on',b.id==='sg-'+n);}});}}
+function _setMenu(open){{var t=document.querySelector('.top'),b=document.getElementById('burger');
+  if(!t)return;t.classList.toggle('open',open);
+  if(b){{b.setAttribute('aria-expanded',open?'true':'false');b.textContent=open?'✕':'☰';}}}}
+function toggleMenu(){{_setMenu(!document.querySelector('.top').classList.contains('open'));}}
+document.querySelectorAll('.nav a').forEach(function(a){{a.addEventListener('click',function(){{_setMenu(false);}});}});
+document.addEventListener('click',function(e){{var t=document.querySelector('.top');
+  if(t&&t.classList.contains('open')&&!t.contains(e.target))_setMenu(false);}});
 function setModel(wm){{
   var bt=document.querySelector('table.board');if(bt)bt.classList.toggle('elo',wm==='elo');
   document.querySelectorAll('table.board td.md').forEach(function(c){{
