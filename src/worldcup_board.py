@@ -1424,7 +1424,10 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  .gt tr.o{{opacity:.5}} img.flag{{margin-right:4px}}
  .qd,.md{{display:inline-block;width:8px;height:8px;border-radius:2px;vertical-align:middle;margin:0 2px}}
  .qd{{background:var(--world)}} .md{{background:#d9a441}}
- .bwrap{{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:6px 0}}
+ .bwrap{{overflow-x:auto;-webkit-overflow-scrolling:touch;
+   /* break the bracket out of the centred column so it fits without scrolling on wide screens,
+      capped so it doesn't sprawl on huge monitors and never wider than the viewport */
+   width:min(100vw - 24px, 1320px);margin:6px 0 6px 50%;transform:translateX(-50%)}}
  .blabels{{display:flex;min-width:1120px;margin-bottom:5px}}
  .blabels span{{flex:1;text-align:center;color:var(--ink3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px}}
  .bracket{{display:flex;min-width:1120px;align-items:stretch}}
