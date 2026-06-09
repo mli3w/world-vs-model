@@ -352,6 +352,20 @@ and the rating update from a result (\(S \in \{1,\tfrac12,0\}\), \(K = 24\)):
 $$E = \frac{1}{1 + 10^{-(R_A - R_B + h)/400}}, \qquad
   R \leftarrow R + K\,\ln\!\big(|\Delta\text{goals}| + 1\big)\,(S - E).$$
 
+*Reading the logistic.* Only the **rating gap** matters, not absolute ratings; the **400** is a
+log-odds scale chosen so that **every 400 points multiplies the odds by 10**. Useful reference points
+(stronger side's win probability):
+
+| Gap | 0 | 100 | 200 | 300 | **400** | 600 | 800 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| P(win) | 50% | 64% | 76% | 85% | **91%** | 97% | 99% |
+| Odds | 1:1 | 1.8:1 | 3.2:1 | 5.6:1 | **10:1** | 32:1 | 100:1 |
+
+Going the other way — implied rating gap from a probability —
+\(\Delta R = 400\,\log_{10}\!\frac{p}{1-p}\). So a market price of 65% implies the favourite has about
+108 Elo points of edge; 75% implies about 191. Handy for sanity-checking what a market is "really
+saying" in Elo terms.
+
 Group-stage scoreline — a **Dixon–Coles**-corrected double Poisson (the \(\rho\) term lifts the
 low-score draws that independent Poisson under-produces, giving a realistic \(\sim 27\%\) draw rate):
 
