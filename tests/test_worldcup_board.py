@@ -41,6 +41,13 @@ def test_evolution_panel_dormant_then_lights_up(tmp_path):
     assert "made it into the last 32" in h                    # the upset surfaced as a surprise
 
 
+def test_analytics_beacon_is_opt_in():
+    assert B._analytics_beacon("") == ""                          # no token -> no beacon
+    b = B._analytics_beacon("abc123token")
+    assert "static.cloudflareinsights.com/beacon.min.js" in b     # the cookieless beacon
+    assert "abc123token" in b                                     # token injected
+
+
 def test_poll_widget_is_opt_in():
     assert B._poll_widget("") == ""                              # no endpoint -> nothing renders
     w = B._poll_widget("https://wvm-poll.example.workers.dev/")

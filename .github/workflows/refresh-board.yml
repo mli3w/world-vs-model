@@ -41,9 +41,11 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Build the board (live Polymarket data)
-        # WVM_POLL_ENDPOINT (repo Variable) activates the fan-poll bubble; unset = bubble omitted.
+        # Repo Variables activate optional features; unset = feature omitted.
+        #   WVM_POLL_ENDPOINT — the fan-poll bubble · WVM_CF_BEACON — Cloudflare Web Analytics beacon
         env:
           WVM_POLL_ENDPOINT: ${{ vars.WVM_POLL_ENDPOINT }}
+          WVM_CF_BEACON: ${{ vars.WVM_CF_BEACON }}
         run: python src/worldcup_board.py --out outputs/index.html
 
       - name: Data guard — refuse to deploy an empty board

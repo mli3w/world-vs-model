@@ -51,6 +51,20 @@ AUTHOR_URL = "https://www.linkedin.com/in/marcusliewjy/"
 # so nothing half-built ships. Set via env (WVM_POLL_ENDPOINT) or paste the workers.dev URL here.
 POLL_ENDPOINT = os.environ.get("WVM_POLL_ENDPOINT", "").strip().rstrip("/")
 
+# Optional cookieless web analytics (Cloudflare Web Analytics). When the beacon token is set, a tiny
+# privacy-preserving beacon is injected on every page so we can see traffic + referrers (which channel
+# sent visitors); when empty, nothing is added. No cookies, no PII. Set via env (WVM_CF_BEACON) or here.
+CF_BEACON_TOKEN = os.environ.get("WVM_CF_BEACON", "").strip()
+
+
+def _analytics_beacon(token=None):
+    """Cloudflare Web Analytics beacon (cookieless). Renders only when a token is configured."""
+    token = CF_BEACON_TOKEN if token is None else token
+    if not token:
+        return ""
+    return ('<script defer src="https://static.cloudflareinsights.com/beacon.min.js" '
+            f'data-cf-beacon=\'{{"token": "{token}"}}\'></script>')
+
 
 def load_results(path=RESULTS_PATH):
     """Played-match results for the live re-forecast, or None if the file is absent (pre-tournament).
@@ -1174,7 +1188,7 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
     desc = ("Can a model beat the World Cup market? A zero-knowledge model (price structure) and an "
             "informed model (Elo) take on the crowd across all 240 markets — scored publicly. Research only.")
     return f"""<!doctype html><html lang=en><head><meta charset=utf-8>
-<meta name=viewport content="width=device-width,initial-scale=1">
+<meta name=viewport content="width=device-width,initial-scale=1">{_analytics_beacon()}
 <title>⚽ World vs Model · World Cup 2026 — Can a model beat the market?</title>
 <meta name=description content="{desc}">
 <meta property="og:title" content="World vs Model · World Cup 2026">
@@ -1886,7 +1900,7 @@ def _doc_page(md_path, title, brand_suffix, nav_html):
     icon = BRAND_ICON
     mark = _brand_mark()
     return f"""<!doctype html><html lang=en><head><meta charset=utf-8>
-<meta name=viewport content="width=device-width,initial-scale=1">
+<meta name=viewport content="width=device-width,initial-scale=1">{_analytics_beacon()}
 <title>{title}</title>
 <link rel=icon href="{icon}">
 <link rel=preconnect href="https://fonts.googleapis.com"><link rel=preconnect href="https://fonts.gstatic.com" crossorigin>
