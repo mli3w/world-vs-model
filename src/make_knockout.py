@@ -53,7 +53,7 @@ def _rows(n_sims=20000):
     return out
 
 
-def _flags(teams, sess, size=(46, 34)):
+def _flags(teams, sess, size=(64, 47)):
     imgs = {}
     for t in teams:
         try:
@@ -72,9 +72,9 @@ def build(rows=None, out=OUT):
     allteams = {t for r in rows for t in r["union"]}
     flags = _flags(allteams, sess)
     champ = next((t for t in rows[-1]["union"]), None)
-    champ_flag = _flags([champ], sess, size=(96, 72)).get(champ) if champ else None
+    champ_flag = _flags([champ], sess, size=(130, 97)).get(champ) if champ else None
 
-    W, H = 1200, 1500
+    W, H = 1500, 1560
     im = Image.new("RGBA", (W, H), NAVY + (255,))
     d = ImageDraw.Draw(im)
     lerp = lambda a, b, t: tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
@@ -104,30 +104,30 @@ def build(rows=None, out=OUT):
         if r["lvl"] == "win" and champ:                       # champion: one big crowned flag
             cx = W // 2
             if champ_flag:
-                im.alpha_composite(champ_flag, (cx - 48, int(cy) - 52))
-            d.text((cx, int(cy) + 30), _disp(champ),
-                   font=MC._font("segoeuib.ttf", 30), fill=INK, anchor="mm")
-            MC._star(d, cx, int(cy) - 70, 12, GOLD)
+                im.alpha_composite(champ_flag, (cx - 65, int(cy) - 64))
+            d.text((cx, int(cy) + 44), _disp(champ),
+                   font=MC._font("segoeuib.ttf", 36), fill=INK, anchor="mm")
+            MC._star(d, cx, int(cy) - 88, 15, GOLD)
             note = ("model & market agree" if r["model"] == r["market"]
                     else "model & market disagree")
-            d.text((cx, int(cy) + 64), note, font=MC._font("seguisb.ttf", 20), fill=INK3, anchor="mm")
+            d.text((cx, int(cy) + 84), note, font=MC._font("seguisb.ttf", 22), fill=INK3, anchor="mm")
             continue
         teams = r["union"]
         n = len(teams)
-        cell = min(150, (W - 220) / max(n, 1))
+        cell = min(190, (W - 240) / max(n, 1))
         x0 = (W - cell * n) / 2 + 40
+        fw, fh = 64, 47
         for j, t in enumerate(teams):
             x = x0 + j * cell + cell / 2
             ring = VIOL if (t in r["model"] and t not in r["market"]) else (
                 TEAL if (t in r["market"] and t not in r["model"]) else None)
             fg = flags.get(t)
-            fw, fh = 46, 34
             if fg:
-                im.alpha_composite(fg, (int(x - fw / 2), int(cy - fh / 2 - 6)))
+                im.alpha_composite(fg, (int(x - fw / 2), int(cy - fh / 2 - 8)))
             if ring:
-                d.rounded_rectangle([x - fw / 2 - 4, cy - fh / 2 - 10, x + fw / 2 + 4, cy + fh / 2 - 2],
-                                    5, outline=ring, width=3)
-            d.text((x, int(cy) + 28), WM.code(t), font=MC._font("seguisb.ttf", 19), fill=INK, anchor="mm")
+                d.rounded_rectangle([x - fw / 2 - 6, cy - fh / 2 - 14, x + fw / 2 + 6, cy + fh / 2 - 2],
+                                    7, outline=ring, width=4)
+            d.text((x, int(cy) + 38), WM.code(t), font=MC._font("segoeuib.ttf", 23), fill=INK, anchor="mm")
 
     fy = H - 64
     try:

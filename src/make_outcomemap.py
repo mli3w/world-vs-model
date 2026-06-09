@@ -26,7 +26,7 @@ OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
 NAVY, TEAL, VIOL, GOLD = MC.NAVY, MC.TEAL, MC.VIOL, MC.GOLD
 INK, INK2, INK3 = MC.INK, MC.INK2, MC.INK3
 PANEL, LINE = (22, 32, 52), (44, 60, 90)
-NW, NH = 104, 30                                 # node width/height
+NW, NH = 150, 48                                 # node width/height (bigger = more legible flags/codes)
 
 
 def _bracket(n_sims=20000):
@@ -46,7 +46,7 @@ def _disp(t):
     return next((x for x in WM.WL.FIELD if nz(x) == t), t)
 
 
-def _flag(t, sess, size=(22, 16)):
+def _flag(t, sess, size=(38, 28)):
     try:
         iso = WM.info(t)[0]
         b = sess.get(f"https://flagcdn.com/80x60/{iso}.png", timeout=15).content
@@ -64,19 +64,19 @@ def build(out=OUT, n_sims=20000):
     sess = requests.Session()
     sess.headers.update({"User-Agent": "world-vs-model research"})
     flags = {t: _flag(t, sess) for t in rounds[0]}
-    champ_flag = _flag(champ, sess, size=(54, 40)) if champ else None
+    champ_flag = _flag(champ, sess, size=(72, 54)) if champ else None
 
-    W, H = 1640, 1500
+    W, H = 2000, 1760
     im = Image.new("RGBA", (W, H), NAVY + (255,))
     d = ImageDraw.Draw(im)
     lerp = lambda a, b, t: tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
     for x in range(W):
-        d.line([(x, 0), (x, 8)], fill=lerp(TEAL, VIOL, x / W))
-    d.text((46, 40), "The most-likely 2026 World Cup bracket", font=MC._font("segoeuib.ttf", 48), fill=INK)
-    d.text((46, 104), "My informed (Elo) model's projection — real FIFA slots, Round of 32 to the champion",
-           font=MC._font("seguisb.ttf", 26), fill=INK2)
+        d.line([(x, 0), (x, 9)], fill=lerp(TEAL, VIOL, x / W))
+    d.text((50, 42), "The most-likely 2026 World Cup bracket", font=MC._font("segoeuib.ttf", 56), fill=INK)
+    d.text((50, 116), "My informed (Elo) model's projection — real FIFA slots, Round of 32 to the champion",
+           font=MC._font("seguisb.ttf", 29), fill=INK2)
 
-    margin, top_y, bot_y = 56, 220, H - 110
+    margin, top_y, bot_y = 60, 268, H - 120
     step = (W - 2 * margin - NW) / 10.0
     col_cx = [margin + NW / 2 + k * step for k in range(11)]   # 11 column centres
     # vertical slots: 16 on the outer columns, parents centred on their two children
@@ -92,24 +92,24 @@ def build(out=OUT, n_sims=20000):
     R = [rounds[0][16:], rounds[1][8:], rounds[2][4:], rounds[3][2:], rounds[4][1:]]
     labels = ["R32", "R16", "QF", "SF", "FINAL", "CHAMPION", "FINAL", "SF", "QF", "R16", "R32"]
     for k, lab in enumerate(labels):
-        d.text((col_cx[k], 178), lab, font=MC._font("segoeuib.ttf", 16), fill=INK3, anchor="mm")
+        d.text((col_cx[k], 232), lab, font=MC._font("segoeuib.ttf", 20), fill=INK3, anchor="mm")
 
     def _node(cx, cy, team, champ=False):
         if champ:
-            bw, bh = 150, 64
-            d.rounded_rectangle([cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2], 12,
-                                fill=(30, 26, 54), outline=VIOL, width=3)
+            bw, bh = 210, 96
+            d.rounded_rectangle([cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2], 14,
+                                fill=(30, 26, 54), outline=VIOL, width=4)
             if champ_flag:
-                im.alpha_composite(champ_flag, (int(cx - 27), int(cy - 30)))
-            d.text((cx, cy + 16), _disp(team), font=MC._font("segoeuib.ttf", 22), fill=INK, anchor="mm")
-            MC._star(d, cx, int(cy - 34), 11, GOLD)
+                im.alpha_composite(champ_flag, (int(cx - 36), int(cy - 42)))
+            d.text((cx, cy + 26), _disp(team), font=MC._font("segoeuib.ttf", 28), fill=INK, anchor="mm")
+            MC._star(d, cx, int(cy - 46), 14, GOLD)
             return
-        d.rounded_rectangle([cx - NW / 2, cy - NH / 2, cx + NW / 2, cy + NH / 2], 6,
+        d.rounded_rectangle([cx - NW / 2, cy - NH / 2, cx + NW / 2, cy + NH / 2], 8,
                             fill=PANEL, outline=LINE, width=1)
         fg = flags.get(team)
         if fg:
-            im.alpha_composite(fg, (int(cx - NW / 2 + 9), int(cy - 8)))
-        d.text((cx - NW / 2 + 40, cy), WM.code(team), font=MC._font("seguisb.ttf", 18), fill=INK, anchor="lm")
+            im.alpha_composite(fg, (int(cx - NW / 2 + 12), int(cy - 14)))
+        d.text((cx - NW / 2 + 60, cy), WM.code(team), font=MC._font("segoeuib.ttf", 24), fill=INK, anchor="lm")
 
     def _connect(kc, kp, yc, yp, left=True):
         """Bracket connectors between child column kc and parent column kp."""
@@ -132,8 +132,8 @@ def build(out=OUT, n_sims=20000):
         _connect(k, k + 1, yL[k], yL[k + 1], left=True)
     for k in range(4):                                         # R: mirror (cols 10..7 -> 6)
         _connect(10 - k, 9 - k, yL[k], yL[k + 1], left=False)
-    d.line([(col_cx[4] + NW / 2, yL[4][0]), (col_cx[5] - 75, champ_y)], fill=LINE, width=1)
-    d.line([(col_cx[6] - NW / 2, yL[4][0]), (col_cx[5] + 75, champ_y)], fill=LINE, width=1)
+    d.line([(col_cx[4] + NW / 2, yL[4][0]), (col_cx[5] - 105, champ_y)], fill=LINE, width=1)
+    d.line([(col_cx[6] - NW / 2, yL[4][0]), (col_cx[5] + 105, champ_y)], fill=LINE, width=1)
 
     # nodes
     cols_L = list(zip(range(5), L, yL))
@@ -146,8 +146,8 @@ def build(out=OUT, n_sims=20000):
             _node(col_cx[k], y, t)
     if champ:
         _node(col_cx[5], champ_y, champ, champ=True)
-        d.text((col_cx[5], champ_y + 46), f"🏆 {win.get(nz(champ), 0)*100:.0f}% to lift it",
-               font=MC._font("seguisb.ttf", 17), fill=INK3, anchor="mm")
+        d.text((col_cx[5], champ_y + 66), f"🏆 {win.get(nz(champ), 0)*100:.0f}% to lift it",
+               font=MC._font("seguisb.ttf", 21), fill=INK3, anchor="mm")
 
     fy = H - 72
     try:
