@@ -175,7 +175,7 @@ knows a team's specific group context better than a single backward-looking Elo 
 being cruder than the crowd being wrong. **Big disagreement ≠ edge.** Both books are scored by the
 same live scorecard; that's what adjudicates. (`src/worldcup_fundamental.py`.)
 
-**The most-likely outcome map.** The same 20k simulations also drive a projection on the board: the
+**The Outcome map.** The same 20k simulations also drive a projection on the board: the
 **projected group stage** (each team's most-likely finishing rank + advance %, from the group
 finishing-position distribution) and a **knockout pyramid** (the most-likely Quarter-finalists →
 Semi-finalists → Finalists → Champion, read off the reach-round probabilities). These are the
@@ -421,6 +421,6 @@ $$\text{Brier} = \frac{1}{n}\sum_i (p_i - o_i)^2, \qquad
 | Paper positions, mark-to-live, resolve PnL | `src/worldcup_positions.py` |
 | Active book rotation rules (sell / take-profit / cut / switch, cost-gated) | `src/wc_active.py` |
 | Conviction-weighted sizing + the four books + the HTML board | `src/worldcup_board.py` |
-| Pre-registered predictions, frozen books, scorecard + the **bracket scorecard** | `src/worldcup_register.py`, `ledger/` |
+| Pre-registered predictions, frozen books, scorecard + the **bracket score** | `src/worldcup_register.py`, `ledger/` |
 | "As it unfolds" — forecast moves + surprise (surprisal) ranking | `src/wc_evolution.py` |
 | Record a played result → live re-forecast | `src/feed_result.py` |

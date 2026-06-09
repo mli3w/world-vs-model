@@ -45,7 +45,8 @@ Everything here is **research & education** — not financial advice, not a tipp
 | **Cost buffer** | The half-spread gate: a gap that doesn't clear it isn't traded. A *round trip* (close + reopen) costs ~2× it, so a switch must beat that. |
 | **Take-profit / Cut / Rotate** | The Active book's exit rules. **Cut** = stop-loss when the model flips against a leg. **Take-profit** = realised for free at settlement (we don't pay a spread to sit in cash). **Rotate** = leave a leg early only for a clearly bigger edge. |
 | **Hysteresis** | A dead-band around fair value so a leg that merely wobbles isn't cut-and-reopened repeatedly — it stops the book churning the spread on noise. |
-| **Bracket scorecard** | Scores the knockout *projection*: a round-weighted points race (market vs each model) plus a per-round Brier, frozen pre-tournament and tallied as rounds resolve. |
+| **Bracket score** | Scores the knockout *projection*: a round-weighted points race (Informed vs Market) plus a per-round Brier, frozen pre-tournament and tallied as rounds resolve. Distinct from the **Scoreboard** (the overall track record). |
+| **Outcome map** | The model's *distribution* over how the tournament unfolds — title-race odds, where each team bows out, and the single most-likely bracket. Not a prediction; a spread. |
 | **Surprisal (bits)** | How astonishing a result was, given the chance assigned it: −log₂(p). A 50/50 that lands is 1 bit, a 1-in-8 is 3. We rank shocks by it and note whether the model or the market was less surprised. |
 | **Forecast move** | How far the model's live re-forecast has drifted from its frozen kickoff call (e.g. a team's title odds rising as it wins) — the model visibly changing its mind on new results. |
 

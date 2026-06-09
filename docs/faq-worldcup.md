@@ -134,6 +134,15 @@ a way to *size* the edges, not a portfolio.
 
 ## Using the site
 
+### Where do I find the bracket / scorecard / book?
+
+Use the top nav. From left to right: **Scoreboard** (the three contestants), **Disagreements** (where
+the zero-knowledge model fades the market most), **🔮 Outcome map** (the model's full distribution
+over how far each team goes, with the single most-likely bracket at the bottom), **🏆 Bracket score**
+(the round-weighted points race + per-round Brier), **Board** (the dense market-vs-model table),
+**Books** (the paper PnL), and **Model** (the informed-model summary). The Outcome map and Bracket
+score are top-level sections — no tabs to click through.
+
 ### How do I read the board?
 
 Each **row is a team**. The left block is the market's de-vigged price to clear each round — advance
@@ -147,8 +156,10 @@ see the reasoning behind it, and click a column header to sort.
 
 It is a **distribution, not a prediction**. *Title race* shows each team's chance to win the cup; *how
 far each team goes* shows where the simulation has each team bow out; *the field narrows* tracks who
-fills each round; and the bracket is just the single most-likely path. Even the favourite usually wins
-only about one time in six.
+fills each round; and the bracket at the bottom is just the single most-likely path. Even the favourite
+usually wins only about one time in six. The **Bracket score** section immediately below it is the
+*scoring* layer — each side fills the bracket with its own probabilities, and as rounds resolve we
+tally a round-weighted points race (Informed model vs Market) alongside a per-round Brier.
 
 ### Why doesn't the fan poll work for me?
 

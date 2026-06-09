@@ -308,7 +308,7 @@ def _bracket_score_html(path=BRACKET_SCORE):
             else '<th class=l>Round</th><th>Wt</th><th>Where the brackets disagree '
                  '<span class=sub>(<span class=eloc>model</span> picks vs <span class=world>market</span> picks)</span></th>')
     return (
-        '<h2 id=bracketscore>Bracket scorecard '
+        '<h2 id=bracketscore>Bracket score '
         '<span class=sub>— scoring the knockout call, market vs model</span></h2>'
         '<p class=note>The bracket above is a projection; this keeps it honest. Each side fills the '
         'bracket from its <i>own</i> probabilities (the top teams per round); a correctly placed team '
@@ -708,7 +708,7 @@ def _outcome_map(fundamental, positions, groups, n_sims=20000, paths=None):
             f'contender, so each is a stream you can follow</span></h3>'
             f'{_progression(fundamental, groups)}')
     return (
-        f'<h2 id=outcome>Most likely outcome '
+        f'<h2 id=outcome>Outcome map '
         f'<span class=sub>— the <span class=eloc>informed</span> model\'s projection</span></h2>'
         f'<p class=note>What the informed Elo model expects, from <b>{n_sims//1000}k simulations</b> of the '
         f'verified bracket — these are the <b>model\'s</b> probabilities, not the market\'s. A 20k-run '
@@ -1229,12 +1229,13 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  .brand .vs{{color:var(--elo)}}
  .hmark{{width:50px;height:50px;border-radius:12px;flex:0 0 auto;box-shadow:0 2px 14px rgba(0,0,0,.35)}}
  @media(max-width:560px){{.hmark{{width:40px;height:40px;border-radius:10px}}}}
- .nav{{display:flex;gap:15px;margin-left:auto;font-size:13px}} .nav a{{color:var(--ink3);text-decoration:none}}
+ .nav{{display:flex;gap:13px;margin-left:auto;font-size:13px;flex-wrap:nowrap}}
+ .nav a{{color:var(--ink3);text-decoration:none;white-space:nowrap}}
  .nav a:hover{{color:var(--ink)}}
  .burger{{display:none;margin-left:auto;background:var(--raise);border:1px solid var(--line3);color:var(--ink);
    border-radius:8px;width:34px;height:30px;cursor:pointer;font-size:15px;line-height:1;
    align-items:center;justify-content:center}}
- @media(max-width:720px){{
+ @media(max-width:880px){{
    .burger{{display:flex}}
    .nav{{position:absolute;top:100%;left:0;right:0;margin:0;display:none;flex-direction:column;gap:0;
      background:var(--bg);border-bottom:1px solid var(--line2);box-shadow:0 12px 26px rgba(0,0,0,.28);padding:4px 0}}
@@ -1508,7 +1509,14 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
    padding:11px 17px;cursor:pointer;font-size:14px;font-weight:700;white-space:nowrap;transition:transform .08s}}
  .sgb:hover{{color:var(--ink);border-color:var(--ink3);transform:translateY(-1px)}}
  .sgb.on{{color:#fff;border-color:var(--model);background:var(--model)}}
+ @media(max-width:600px){{.sgb{{padding:9px 12px;font-size:13px}} .seghint{{font-size:10px}}}}
  .epane.hidden{{display:none}} #evidence h3{{margin-top:6px}}
+ /* ---- mobile quick-jumps: chips just under the hero so the key sections are 1 tap away ---- */
+ .qjump{{display:none;gap:8px;flex-wrap:wrap;margin:8px 0 2px}}
+ .qjump a{{flex:1 1 calc(50% - 4px);text-align:center;background:var(--panel);border:1.5px solid var(--line2);
+   color:var(--ink);border-radius:10px;padding:11px 8px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap}}
+ .qjump a:active{{background:var(--modelwash)}}
+ @media(max-width:880px){{.qjump{{display:flex}}}}
  /* ---- collapsible 'how to read this' explainers keep the default view clean ---- */
  details.exp{{margin:6px 0 10px;border:1px solid var(--line2);border-radius:10px;background:var(--panel);padding:0 12px}}
  details.exp>summary{{cursor:pointer;color:var(--ink2);font-size:12px;font-weight:600;padding:9px 0;list-style:none}}
@@ -1529,7 +1537,7 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
 <div class=top>
   <span class=brand><img src="{mark}" alt="World vs Model"> World <span class=vs>vs</span> Model <span class=bt>· World Cup 2026</span></span>
   <nav class=nav><a href="#record">Scoreboard</a><a href="#cards">Disagreements</a>
-    <a href="#outcome">🔮 Bracket</a><a href="#bracketscore">🏆 Scorecard</a><a href="#board">Board</a>
+    <a href="#outcome">🔮 Outcome map</a><a href="#bracketscore">🏆 Bracket score</a><a href="#board">Board</a>
     <a href="#book">Books</a><a href="#fundamental">Model</a>
     <a href="methodology.html">Method</a><a href="faq.html">FAQ</a></nav>
   <button class=burger id=burger onclick="toggleMenu()" aria-label="Open menu" aria-expanded="false">☰</button>
@@ -1550,6 +1558,10 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
    <span class=pill><b>240</b> markets · 48 teams</span>
    <span class=pill>scored <b>vs the market</b></span></div>
  {keydates}
+ <div class=qjump aria-label="Quick jumps">
+   <a href="#outcome">🔮 Outcome map</a><a href="#bracketscore">🏆 Bracket score</a>
+   <a href="#board">⚽ Board</a><a href="#book">💰 Books</a>
+ </div>
  <section id=recordsec><h2 id=record>The scoreboard
    <span class=sub>— Track record, scored out of sample as results land</span></h2>
    <div class=sboard>
