@@ -1166,12 +1166,11 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
         '<p class=note>Where the ladder’s own prices break nesting (a team priced likelier to go far '
         'than to go less far) — a risk-free edge that can open on a quiet day, not just a matchday.</p>'
         f'</details><ul>{arbs}</ul></div></div>')
-    segs = [("board", "⚽ The board", board_pane), ("vig", "💸 Vig &amp; gaps", vig_pane)]
-    if outcome_html:
-        segs.append(("outcome", "🔮 Outcome map", outcome_html))
-    if bracket_score_html:
-        segs.append(("bracket", "🏆 Bracket score", bracket_score_html))
-    segs.append(("fixtures", "📅 Fixtures", fixtures_html))
+    # The hero VISUALS (outcome map + bracket scorecard) are promoted to their own top-level sections
+    # (see the body below) so they're discoverable in one click — not buried behind a tab. The Evidence
+    # control keeps only the *dense data* tables: the board, the vig/gaps, the fixtures.
+    segs = [("board", "⚽ The board", board_pane), ("vig", "💸 Vig &amp; gaps", vig_pane),
+            ("fixtures", "📅 Fixtures", fixtures_html)]
     seg_btns = "".join(
         f'<button class="sgb{" on" if i == 0 else ""}" id=sg-{k} onclick="seg(\'{k}\')">{lbl}</button>'
         for i, (k, lbl, _b) in enumerate(segs))
@@ -1179,9 +1178,13 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
         f'<div class="epane{"" if i == 0 else " hidden"}" id=ev-{k}>{b}</div>'
         for i, (k, _l, b) in enumerate(segs))
     evidence_html = (
-        '<section id=evidence><h2 id=board>The evidence '
-        '<span class=sub>— market vs model, one view at a time</span></h2>'
+        '<section id=evidence class=secsec><span class=eyebrow>The underlying data</span>'
+        '<h2 id=board>The evidence <span class=sub>— market vs model, one view at a time</span></h2>'
+        '<div class=seghint>👆 tap a tab to switch view</div>'
         f'<div class=seg role=tablist>{seg_btns}</div>{seg_panes}</section>')
+    # the promoted hero sections (rendered high on the page, right after the disagreements)
+    outcome_section = (f'<section id=outcomesec>{outcome_html}</section>' if outcome_html else "")
+    bracket_section = (f'<section id=bracketsec>{bracket_score_html}</section>' if bracket_score_html else "")
 
     icon = BRAND_ICON                                         # crisp tiny favicon
     mark = _brand_mark()                                      # the Canva emblem (brand + hero)
@@ -1499,10 +1502,12 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  .sbc .sbv{{font-size:15px;font-weight:800;font-family:'Space Grotesk',Inter,sans-serif;margin:3px 0 1px}}
  .sbc .sbn{{font-size:11px;color:var(--ink4)}}
  /* ---- segmented control + evidence panes (one view at a time) ---- */
- .seg{{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px}}
- .sgb{{background:var(--panel);border:1px solid var(--line2);color:var(--ink3);border-radius:9px;
-   padding:8px 13px;cursor:pointer;font-size:13px;font-weight:600}}
- .sgb:hover{{color:var(--ink2)}} .sgb.on{{color:var(--ink);border-color:var(--model);background:var(--modelwash)}}
+ .seghint{{font-size:11px;color:var(--ink3);font-weight:600;margin:2px 0 2px}}
+ .seg{{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 6px;overflow-x:auto;-webkit-overflow-scrolling:touch}}
+ .sgb{{background:var(--panel);border:1.5px solid var(--line2);color:var(--ink2);border-radius:10px;
+   padding:11px 17px;cursor:pointer;font-size:14px;font-weight:700;white-space:nowrap;transition:transform .08s}}
+ .sgb:hover{{color:var(--ink);border-color:var(--ink3);transform:translateY(-1px)}}
+ .sgb.on{{color:#fff;border-color:var(--model);background:var(--model)}}
  .epane.hidden{{display:none}} #evidence h3{{margin-top:6px}}
  /* ---- collapsible 'how to read this' explainers keep the default view clean ---- */
  details.exp{{margin:6px 0 10px;border:1px solid var(--line2);border-radius:10px;background:var(--panel);padding:0 12px}}
@@ -1518,12 +1523,14 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
    color:var(--ink4);background:var(--raise);border:1px solid var(--line2);border-radius:20px;padding:2px 10px;margin:14px 0 0}}
  /* searching focuses the board: drop the surrounding furniture so results stand alone */
  body.searching #booksec,body.searching #fundamental,body.searching #evidence .seg,
+ body.searching #outcomesec,body.searching #bracketsec,
  body.searching .sboard{{display:none}}
 </style></head><body>
 <div class=top>
   <span class=brand><img src="{mark}" alt="World vs Model"> World <span class=vs>vs</span> Model <span class=bt>· World Cup 2026</span></span>
-  <nav class=nav><a href="#record">Scoreboard</a><a href="#cards">Disagreements</a><a href="#board">Evidence</a>
-    <a href="#book">Books</a><a href="#fundamental">Informed model</a>
+  <nav class=nav><a href="#record">Scoreboard</a><a href="#cards">Disagreements</a>
+    <a href="#outcome">🔮 Bracket</a><a href="#bracketscore">🏆 Scorecard</a><a href="#board">Board</a>
+    <a href="#book">Books</a><a href="#fundamental">Model</a>
     <a href="methodology.html">Method</a><a href="faq.html">FAQ</a></nav>
   <button class=burger id=burger onclick="toggleMenu()" aria-label="Open menu" aria-expanded="false">☰</button>
   <button class=tgl id=th onclick="tg()" title="Toggle light / dark">☀️</button>
@@ -1563,6 +1570,8 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  <div class=nores id=nores hidden>No team matches — try a country like <b>France</b>, <b>Japan</b> or <b>Brazil</b>.</div>
  <section id=disagree><h2 id=cards>The <span style="color:var(--world)">zero-knowledge</span> model's biggest disagreements</h2>
  {cardstrip}</section>
+ {outcome_section}
+ {bracket_section}
  {elo_intro_section}
  {evidence_html}
  <section id=booksec class=secsec>
@@ -1641,6 +1650,8 @@ function _setMenu(open){{var t=document.querySelector('.top'),b=document.getElem
   if(b){{b.setAttribute('aria-expanded',open?'true':'false');b.textContent=open?'✕':'☰';}}}}
 function toggleMenu(){{_setMenu(!document.querySelector('.top').classList.contains('open'));}}
 document.querySelectorAll('.nav a').forEach(function(a){{a.addEventListener('click',function(){{_setMenu(false);}});}});
+(function(){{var K=['board','vig','fixtures'];var h=(location.hash||'').replace('#','');   // deep-link an Evidence tab
+  if(K.indexOf(h)>=0&&typeof seg==='function'){{seg(h);var el=document.getElementById('ev-'+h);if(el)el.scrollIntoView();}}}})();
 document.addEventListener('click',function(e){{var t=document.querySelector('.top');
   if(t&&t.classList.contains('open')&&!t.contains(e.target))_setMenu(false);}});
 function setModel(wm){{
