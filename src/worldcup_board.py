@@ -1993,6 +1993,36 @@ def build_glossary_html(md_path=GLOSSARY_MD, board_href="worldcup_board.html"):
                      "Glossary &amp; references", nav)
 
 
+def write_share_redirects(outdir, campaign="kickoff"):
+    """Tiny meta-refresh redirect pages so we can share brandable short URLs that still tag with UTMs.
+
+    Maps `outdir/go/<channel>.html` → SITE_URL/?utm_source=<channel>&utm_medium=social&utm_campaign=…#outcome
+    so a post can carry `mli3w.github.io/world-vs-model/go/linkedin` instead of an ugly query string —
+    LinkedIn (which suppresses preview cards when images are attached) gets a clean visible URL, and
+    Cloudflare Web Analytics still attributes the click to its channel. Reddit/X are wired the same.
+    """
+    go = os.path.join(outdir, "go")
+    os.makedirs(go, exist_ok=True)
+    for channel in ("linkedin", "reddit", "x"):
+        url = f"{SITE_URL}/?utm_source={channel}&utm_medium=social&utm_campaign={campaign}#outcome"
+        html = (f'<!doctype html><html lang=en><head><meta charset=utf-8>'
+                f'<title>Redirecting to World vs Model…</title>'
+                f'<meta http-equiv=refresh content="0;url={url}">'
+                f'<link rel=canonical href="{SITE_URL}/">'
+                f'<meta name=robots content="noindex">'
+                f'<style>body{{font:14px/1.5 system-ui,sans-serif;background:#0c1424;color:#e9edf8;'
+                f'padding:48px;text-align:center}}a{{color:#4f7ce8}}</style></head>'
+                f'<body>Redirecting to <a href="{url}">World vs Model</a>…'
+                f'<script>location.replace({_json_dumps(url)});</script></body></html>')
+        with open(os.path.join(go, f"{channel}.html"), "w", encoding="utf-8") as f:
+            f.write(html)
+
+
+def _json_dumps(s):
+    import json as _json
+    return _json.dumps(s)
+
+
 def build_faq_html(md_path=FAQ_MD, board_href="worldcup_board.html"):
     """The FAQ page (plain-language answers — distinct from the methodology and glossary)."""
     nav = (f'<a href="{board_href}">← Board</a>'
@@ -2033,6 +2063,7 @@ def main(argv=None):
     except OSError:
         print("[board] og image not found; skipped wvm_og.png")
     outdir = os.path.dirname(a.out) or "."
+    write_share_redirects(outdir)                          # /go/{linkedin,reddit,x}.html → tagged URL
     for fname, builder in (("methodology.html", build_methodology_html),
                            ("glossary.html", build_glossary_html),
                            ("faq.html", build_faq_html)):
