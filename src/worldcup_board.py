@@ -37,6 +37,7 @@ ELO_CORE_LEDGER = os.path.join("ledger", "wc_elo_core.jsonl")   # informed (Elo)
 ELO_LIVE_LEDGER = os.path.join("ledger", "wc_elo_live.jsonl")   # informed (Elo) Active
 SCORECARD = os.path.join("ledger", "scorecard.json")      # the public, resolved-out-of-sample record
 BRACKET_SCORE = os.path.join("ledger", "bracket_score.json")  # the knockout-bracket scorecard
+BMA_PATH = os.path.join("ledger", "bma.json")             # per-level model weights + ensemble probs
 PREDICTIONS = os.path.join("ledger", "predictions.jsonl")  # the timestamped forecast ledger
 RESULTS_PATH = os.path.join("ledger", "wc_results.json")  # played matches -> live Elo re-forecast
 
@@ -330,6 +331,62 @@ def _bracket_score_html(path=BRACKET_SCORE):
 
 _UNFOLD_PHRASE = {"advance": "into the last 32", "reach_QF": "into the quarters",
                   "reach_SF": "into the semis", "reach_F": "into the final", "win": "to the title"}
+
+
+_BMA_LEVELS = [("advance", "Last 32"), ("reach_QF", "Quarters"), ("reach_SF", "Semis"),
+               ("reach_F", "Final"), ("win", "Champion")]
+_BMA_MODEL_LABEL = {"zero_knowledge": "Zero-knowledge", "elo": "Informed · Elo"}
+_BMA_MODEL_CLS = {"zero_knowledge": "model", "elo": "eloc"}
+
+
+def _bma_html(path=BMA_PATH):
+    """The ensemble (Bayesian model averaging) panel: per-rung model weights that drift with the
+    scorecard, plus a plain-English explainer. Pre-tournament every weight is 50/50 and the panel
+    states so; once rounds resolve the bars shift and we surface the leader per rung."""
+    try:
+        import json as _json
+        with open(path) as f:
+            d = _json.load(f)
+    except Exception:
+        return ""
+    weights = d.get("weights", {})
+    n_res = d.get("n_resolved", 0)
+    models = d.get("models", ["zero_knowledge", "elo"])
+    rows = []
+    for lvl, lbl in _BMA_LEVELS:
+        w = weights.get(lvl, {})
+        if not w:
+            continue
+        cells = []
+        for m in models:
+            wv = w.get(m, 0)
+            cls = _BMA_MODEL_CLS.get(m, "")
+            cells.append(f'<div class="bmab {cls}" style="flex:{max(wv,0.001):.3f}" '
+                         f'title="{_BMA_MODEL_LABEL.get(m, m)} weight">{wv*100:.0f}%</div>')
+        leader = max(w, key=w.get) if w else None
+        diff = abs(max(w.values()) - 0.5) if w else 0
+        note = (f'<span class=sub>tied</span>' if diff < 0.01 else
+                f'<span class="bmal {_BMA_MODEL_CLS.get(leader, "")}">'
+                f'{_BMA_MODEL_LABEL.get(leader, "—").split(" · ")[0]} ahead</span>')
+        rows.append(f'<tr><td class=team>{lbl}</td>'
+                    f'<td class=bmabarcell><div class=bmabar>{"".join(cells)}</div></td>'
+                    f'<td class=l>{note}</td></tr>')
+    status = (f'<b>{n_res}</b> forecast{"s" if n_res != 1 else ""} scored — weights are drifting'
+              if n_res else 'tied 50/50 per rung — will start drifting once the first round resolves')
+    return (
+        '<h2 id=ensemble>The ensemble '
+        '<span class=sub>— a third forecast: Bayesian model averaging</span></h2>'
+        '<p class=note>Rather than commit to one model, the <b>ensemble</b> averages both — weighted '
+        'by each model\'s <b>per-round Brier track record</b>. The weight at each rung self-corrects: '
+        'whichever model is better-calibrated <i>at that rung</i> earns a bigger share. '
+        f'Pre-tournament both weight 0.5; {status}.</p>'
+        '<table class="bmatab"><thead><tr><th class="l team">Round</th>'
+        '<th>Model confidence (Zero-knowledge ←→ Informed · Elo)</th><th class=l>Leader</th></tr>'
+        '</thead><tbody>' + "".join(rows) + '</tbody></table>'
+        '<p class="note sub">Why average? Combined forecasts beat their components on average — a '
+        'replicated finding across forecasting (IPCC averages climate models, BoE averages inflation '
+        'models, ensembles routinely win Kaggle). The catch with one tournament: weights move modestly '
+        'and the ensemble itself is now a third <a href="methodology.html">falsifiable</a> claim.</p>')
 
 
 def _evolution_html(fundamental, pred_path=PREDICTIONS, results_path=RESULTS_PATH):
@@ -1137,6 +1194,7 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
                  f'<div id=pane-elol class=pane hidden>{elol_money}<div class=scroll>{elol_book}</div></div>'
                  ) if fundamental else ""
     bracket_score_html = _bracket_score_html()               # the knockout bracket scorecard
+    bma_html = _bma_html()                                   # the ensemble (BMA) panel
     evolution_html = _evolution_html(fundamental) if fundamental else ""   # 'as it unfolds' (dormant pre-tournament)
     outcome_html = (_outcome_map(fundamental, positions, WM.WL.GROUPS_2026, paths=paths)
                     if (fundamental and positions) else "")
@@ -1190,6 +1248,7 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
     # the promoted hero sections (rendered high on the page, right after the disagreements)
     outcome_section = (f'<section id=outcomesec>{outcome_html}</section>' if outcome_html else "")
     bracket_section = (f'<section id=bracketsec>{bracket_score_html}</section>' if bracket_score_html else "")
+    bma_section = (f'<section id=bmasec>{bma_html}</section>' if bma_html else "")
 
     icon = BRAND_ICON                                         # crisp tiny favicon
     mark = _brand_mark()                                      # the Canva emblem (brand + hero)
@@ -1312,6 +1371,15 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  .bsc.model{{border-color:var(--model);color:var(--ink)}} .bsc.world{{border-color:var(--world);color:var(--ink)}}
  .bshit{{font-weight:700;font-size:12px;padding:1px 7px;border-radius:6px;border:1px solid var(--line2);margin-right:5px}}
  .bshit.pos{{color:var(--pos);border-color:var(--pos)}} .bshit.neg{{color:var(--neg)}}
+ /* ---- BMA panel: the model-weights bar that drifts as forecasts resolve ---- */
+ table.bmatab{{width:100%;margin:8px 0}} table.bmatab td,table.bmatab th{{padding:7px 8px;vertical-align:middle}}
+ table.bmatab th.l,table.bmatab td.l,table.bmatab td.team{{text-align:left}}
+ .bmabarcell{{padding:6px 8px}}
+ .bmabar{{display:flex;height:18px;border:1px solid var(--line2);border-radius:6px;overflow:hidden;min-width:160px}}
+ .bmab{{display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;
+   transition:flex .4s ease}}
+ .bmab.model{{background:var(--model)}} .bmab.eloc{{background:var(--elo)}}
+ .bmal{{font-weight:700;font-size:12px}} .bmal.model{{color:var(--model)}} .bmal.eloc{{color:var(--eloink)}}
  ul.evlist{{list-style:none;padding:0;margin:4px 0}} ul.evlist li{{padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}}
  ul.evlist li img.flag{{vertical-align:-2px;margin-right:4px}} ul.evlist .sub{{color:var(--ink3)}}
  .searchbar{{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line3);
@@ -1539,13 +1607,13 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
    color:var(--ink4);background:var(--raise);border:1px solid var(--line2);border-radius:20px;padding:2px 10px;margin:14px 0 0}}
  /* searching focuses the board: drop the surrounding furniture so results stand alone */
  body.searching #booksec,body.searching #fundamental,body.searching #evidence .seg,
- body.searching #outcomesec,body.searching #bracketsec,
+ body.searching #outcomesec,body.searching #bracketsec,body.searching #bmasec,
  body.searching .sboard{{display:none}}
 </style></head><body>
 <div class=top>
   <span class=brand><img src="{mark}" alt="World vs Model"> World <span class=vs>vs</span> Model <span class=bt>· World Cup 2026</span></span>
   <nav class=nav><a href="#record">Scoreboard</a><a href="#cards">Disagreements</a>
-    <a href="#outcome">🔮 Outcome map</a><a href="#bracketscore">🏆 Bracket score</a><a href="#board">Board</a>
+    <a href="#outcome">🔮 Outcome map</a><a href="#bracketscore">🏆 Bracket score</a><a href="#ensemble">🤝 Ensemble</a><a href="#board">Board</a>
     <a href="#book">Books</a><a href="#fundamental">Model</a>
     <a href="methodology.html">Method</a><a href="faq.html">FAQ</a></nav>
   <button class=burger id=burger onclick="toggleMenu()" aria-label="Open menu" aria-expanded="false">☰</button>
@@ -1592,6 +1660,7 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  {cardstrip}</section>
  {outcome_section}
  {bracket_section}
+ {bma_section}
  {elo_intro_section}
  {evidence_html}
  <section id=booksec class=secsec>

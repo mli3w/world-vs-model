@@ -49,6 +49,7 @@ Everything here is **research & education** — not financial advice, not a tipp
 | **Outcome map** | The model's *distribution* over how the tournament unfolds — title-race odds, where each team bows out, and the single most-likely bracket. Not a prediction; a spread. |
 | **Surprisal (bits)** | How astonishing a result was, given the chance assigned it: −log₂(p). A 50/50 that lands is 1 bit, a 1-in-8 is 3. We rank shocks by it and note whether the model or the market was less surprised. |
 | **Forecast move** | How far the model's live re-forecast has drifted from its frozen kickoff call (e.g. a team's title odds rising as it wins) — the model visibly changing its mind on new results. |
+| **Ensemble / Bayesian model averaging** | A third forecast voice: the weighted average of the zero-knowledge and informed models, where weights are derived from each model's per-round Brier track record (better-calibrated → bigger weight). Per-rung, self-correcting, starts 50/50. |
 
 ## Scoring & honesty
 

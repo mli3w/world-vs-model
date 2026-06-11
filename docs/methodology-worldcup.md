@@ -206,6 +206,31 @@ favourites who flopped, each tagged with whether the **model** or the **market**
 i.e. who actually saw it coming. World Cups reliably spring a few; this is where you watch the two
 forecasters react in real time, on top of the frozen call.
 
+**The ensemble — Bayesian model averaging (`src/wc_bma.py`).** Rather than commit to one of our two
+models upfront we run both and present a **third forecast voice**: the weighted average, where the
+weights are derived from each model's **per-rung Brier track record**. The mechanics, deliberately
+simple:
+
+* **One weight per rung, per model.** Pre-tournament every weight starts at `0.5` (no data → no
+  evidence to favour anyone). As forecasts at each rung resolve we update the per-(model, rung)
+  Brier and recompute weights as `w_m(L) ∝ exp(−η · Brier_m(L))`, with η=10 and a small "prior
+  count" of imaginary 0.25-Brier forecasts blended in to shrink toward 50/50 when data is sparse.
+* **Per-rung is the honest framing.** Strict global BMA would force one weight across the whole
+  ladder, but the two models almost certainly have different *areas of strength*: ZK's
+  favourite-longshot correction is most useful at the deepest, most liquid rung (advance), while
+  Elo's structural simulation should help most at the final/champion rungs. Per-rung weights let
+  the data decide where each model earns its keep instead of averaging that signal away.
+* **Why Brier, not strict log-likelihood?** Brier is the same proper score the public scorecard
+  uses, it's bounded in [0, 1] (no `−∞` catastrophe at p=0 outcome=1), and it's robust to a single
+  catastrophic miss. Strict BMA is recovered with log-loss; we trade a small theoretical purity for
+  practical robustness.
+* **Why include it at all?** Combined forecasts beat their components on average — a well-replicated
+  finding across forecasting (the IPCC averages climate models, the BoE averages inflation models,
+  ensembles routinely win Kaggle competitions). The catch with one tournament is the weights move
+  modestly, so the ensemble's edge over either model is bounded. But it's now a *third* falsifiable
+  forecast — the **most honest single number** we publish, because the system itself decides which
+  component model to trust most at each rung.
+
 ## 6. What's missing, and how we'd improve it (read this part)
 
 We are deliberately loud about the limitations — the credibility is in the caveats.
@@ -423,4 +448,5 @@ $$\text{Brier} = \frac{1}{n}\sum_i (p_i - o_i)^2, \qquad
 | Conviction-weighted sizing + the four books + the HTML board | `src/worldcup_board.py` |
 | Pre-registered predictions, frozen books, scorecard + the **bracket score** | `src/worldcup_register.py`, `ledger/` |
 | "As it unfolds" — forecast moves + surprise (surprisal) ranking | `src/wc_evolution.py` |
+| The ensemble — Bayesian model averaging, per-rung weights | `src/wc_bma.py` |
 | Record a played result → live re-forecast | `src/feed_result.py` |

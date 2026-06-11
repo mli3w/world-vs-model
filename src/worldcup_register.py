@@ -31,6 +31,7 @@ LIVE = os.path.join(LEDGER, "wc_live.jsonl")        # frozen zero-knowledge Acti
 ELO_CORE = os.path.join(LEDGER, "wc_elo_core.jsonl")  # frozen informed (Elo) Buy & Hold book
 ELO_LIVE = os.path.join(LEDGER, "wc_elo_live.jsonl")  # frozen informed (Elo) Active book
 BRACKET_SCORE = os.path.join(LEDGER, "bracket_score.json")  # the knockout-bracket scorecard
+BMA_PATH = os.path.join(LEDGER, "bma.json")               # per-level model weights + ensemble probs
 # Every market rung we register a forecast for — the whole knockout ladder, not just the ends, so
 # the bracket (who goes how far) is scored round by round. reach_R16 has no Polymarket market.
 CLAIM_LEVELS = ("advance", "reach_QF", "reach_SF", "reach_F", "win")
@@ -97,6 +98,7 @@ def snapshot(ladder=None, fundamental=None, power=1.15, bankroll=1000.0, date=No
         print(f"[register] wrote {len(new)} forecasts for {date} -> {PRED}")
     _freeze_books(ladder, fundamental, power, bankroll, date)
     write_bracket_scorecard()
+    write_bma()
     return write_scorecard()
 
 
@@ -233,6 +235,36 @@ def bracket_scorecard(preds=None):
                 champions=champions, n_resolved=sum(1 for r in rows if r["resolved"]))
 
 
+def write_bma(preds=None):
+    """Compute and persist Bayesian Model Averaging — per-level weights + ensemble forecasts —
+    so the board can render a third 'ensemble' voice alongside the two component models.
+
+    Dormant pre-tournament: with no resolved forecasts the weights stay at 50/50 per level and the
+    ensemble equals the simple average. Once results land, weights drift per rung toward whichever
+    model is better-calibrated at *that* rung — self-correcting and falsifiable.
+    """
+    import wc_bma as BMA                                    # local import: keeps register import-light
+    preds = preds if preds is not None else _load(PRED)
+    # latest forecast per (model, level, team)
+    latest = {}
+    for p in preds:
+        k = (p["model"], p["level"], p["team"])
+        if k not in latest or p["date"] >= latest[k]["date"]:
+            latest[k] = p
+    forecasts = {k: r["prob"] for k, r in latest.items()}
+    resolved = [r for r in latest.values() if r.get("outcome") is not None]
+    out = BMA.bma(forecasts, resolved)
+    # JSON-friendly: tuple keys -> "level::team" strings
+    ensemble = {f"{lvl}::{team}": p for (lvl, team), p in out["ensemble"].items()}
+    payload = dict(as_of=dt.date.today().isoformat(), n_resolved=out["n_resolved"],
+                   models=out["models"], levels=out["levels"],
+                   weights=out["weights"], ensemble=ensemble)
+    os.makedirs(os.path.dirname(BMA_PATH) or ".", exist_ok=True)
+    with open(BMA_PATH, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+    return payload
+
+
 def write_bracket_scorecard():
     """Persist the bracket scorecard the board reads."""
     card = bracket_scorecard()
@@ -261,6 +293,7 @@ def resolve(level, outcomes):
         _write(rows, path)
     print(f"[register] resolved {n} forecasts at {level}")
     write_bracket_scorecard()
+    write_bma()
     return write_scorecard()
 
 
