@@ -565,15 +565,20 @@ def _title_race(groups, paths, top=12):
 
 def _survival(groups, paths):
     """Each team's EXIT-round distribution as one stacked bar — the canonical 'how far does this
-    team go' view, faithful to all 20k runs (sorted deepest-first)."""
+    team go' view, faithful to all 20k runs. Sorted by title odds (champion %) so the order matches
+    the shareable distribution chart; expected depth breaks ties for teams with ~0 title odds."""
     nz = WM.WL._norm
     dep = paths.get("depth", {})
     field = [t for ts in groups.values() for t in ts]
 
+    def champ_p(t):
+        d = dep.get(nz(t), [])
+        return d[-1] if d else 0.0
+
     def edepth(t):
         return sum(i * p for i, p in enumerate(dep.get(nz(t), [])))
     rows = []
-    for t in sorted(field, key=edepth, reverse=True):
+    for t in sorted(field, key=lambda t: (-champ_p(t), -edepth(t))):
         d = dep.get(nz(t), [])
         if not d:
             continue
