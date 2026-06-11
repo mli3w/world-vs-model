@@ -156,7 +156,7 @@ def test_build_html_v4_brand_theme_and_record():
     # track record strip + countdown + curated cards + mobile scroll wrapper.
     # pre-stamp the scorecard file may be absent ("arming"); post-stamp it's PRE-KICKOFF / hit rate
     assert "Track record" in h and ("PRE-KICKOFF" in h or "hit rate" in h or "arming" in h)
-    assert "Kicks off in" in h or "underway" in h
+    assert "Kicks off in" in h or "Kicks off today" in h or "underway" in h
     assert "MODEL HIGHER" in h and "MODEL LOWER" in h        # forecasting-forward cards (no BUY/FADE)
     assert "we BUY" not in h and "we FADE" not in h          # trading verbs removed from the headline
     assert "class=scroll" in h
