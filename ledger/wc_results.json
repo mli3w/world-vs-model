@@ -1,0 +1,16 @@
+[
+  {
+    "a": "Mexico",
+    "b": "South Africa",
+    "ga": 2,
+    "gb": 0,
+    "stage": "group"
+  },
+  {
+    "a": "South Korea",
+    "b": "Czechia",
+    "ga": 2,
+    "gb": 1,
+    "stage": "group"
+  }
+]
