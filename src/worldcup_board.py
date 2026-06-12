@@ -235,9 +235,13 @@ def _live_timeline(path):
     return out
 
 
-def _scorecard_tiles(path=SCORECARD):
-    """Track-record tiles for the credibility strip. Reads the resolved-out-of-sample scorecard;
-    pre-tournament (nothing resolved yet) it shows an honest 'armed, not yet scored' state."""
+def _scorecard_tiles(path=SCORECARD, results_path=RESULTS_PATH, today=None):
+    """Track-record tiles for the credibility strip. Reads the resolved-out-of-sample scorecard
+    AND the played-match ledger; honestly distinguishes three states:
+       • PRE-KICKOFF  — before Jun 11, nothing yet
+       • GROUP STAGE  — tournament running, advance level still resolving
+       • LIVE         — at least one round has fully resolved → hit rate / Brier / lift
+    """
     try:
         import json as _json
         with open(path) as f:
@@ -245,15 +249,30 @@ def _scorecard_tiles(path=SCORECARD):
     except Exception:
         return [("track record", "arming", "scores after kickoff")]
     n_res, n_tot = d.get("n_resolved", 0), d.get("n_total", 0)
-    if not n_res:
+    today = today or dt.date.today()
+
+    if n_res:                                                  # rounds have resolved → real metrics
+        ov = d.get("overall", {})
+        hit, lift, brier = ov.get("hit_rate"), ov.get("lift"), ov.get("brier")
+        return [("hit rate", f"{hit*100:.0f}%" if hit is not None else "—", f"{n_res} resolved"),
+                ("lift vs chance", f"{lift:+.2f}x" if lift is not None else "—", "skill over base rate"),
+                ("brier score", f"{brier:.3f}" if brier is not None else "—", "lower is better")]
+
+    if today < KICKOFF:                                        # truly pre-tournament
         return [("claims registered", str(n_tot), "timestamped, falsifiable"),
                 ("resolved so far", "0", "skill is scored, not claimed"),
                 ("status", "PRE-KICKOFF", "scorecard arms Jun 11")]
-    ov = d.get("overall", {})
-    hit, lift, brier = ov.get("hit_rate"), ov.get("lift"), ov.get("brier")
-    return [("hit rate", f"{hit*100:.0f}%" if hit is not None else "—", f"{n_res} resolved"),
-            ("lift vs chance", f"{lift:+.2f}x" if lift is not None else "—", "skill over base rate"),
-            ("brier score", f"{brier:.3f}" if brier is not None else "—", "lower is better")]
+
+    # Tournament has started but no round has fully resolved yet (group stage in progress)
+    n_played = 0
+    try:
+        with open(results_path) as f:
+            n_played = len((_json.load(f) or []))
+    except Exception:
+        pass
+    return [("claims registered", str(n_tot), "timestamped, falsifiable"),
+            ("matches played", str(n_played), "feed live results → re-forecast"),
+            ("status", "GROUP STAGE", "advance scored after Jun 27")]
 
 
 def _bracket_score_html(path=BRACKET_SCORE):
