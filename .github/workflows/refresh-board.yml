@@ -20,10 +20,13 @@ permissions:
   pages: write
   id-token: write
 
-# never let two deploys race
+# Serialize deploys: GitHub Pages deployments settle on GitHub's backend after the
+# Actions step ends, so cancelling the in-progress *run* doesn't stop its deployment —
+# a racing run then 400s with "in progress deployment". Queue instead of cancel so each
+# deploy fully completes before the next starts (GitHub's recommended Pages config).
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-deploy:
