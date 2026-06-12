@@ -12,5 +12,12 @@
     "ga": 2,
     "gb": 1,
     "stage": "group"
+  },
+  {
+    "a": "Canada",
+    "b": "Bosnia-Herzegovina",
+    "ga": 1,
+    "gb": 1,
+    "stage": "group"
   }
 ]
