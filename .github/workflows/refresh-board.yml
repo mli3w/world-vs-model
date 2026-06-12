@@ -4,8 +4,9 @@ name: Refresh board
 # Pre-tournament this runs a few times a day (prices drift slowly); during the group stage
 # (from ~2026-06-11) tighten the cron — e.g. '0 */2 * * *' — since matchdays move the board a lot.
 #
-# Live results: the Elo forecast re-forecasts when ledger/wc_results.json is present. That file is
-# updated by hand (commit played match scores as {a,b,ga,gb,stage}); the next run folds them in.
+# Live results: the Elo forecast re-forecasts when ledger/wc_results.json is present. The auto-feed
+# step below polls ESPN's keyless soccer API for completed matches and folds them in idempotently;
+# manual commits via src/feed_result.py still work and are still authoritative if there's a clash.
 
 on:
   schedule:
@@ -15,7 +16,7 @@ on:
   workflow_dispatch: {}          # manual "Run workflow" button
 
 permissions:
-  contents: read
+  contents: write     # need write so the auto-feeder can commit new results back to main
   pages: write
   id-token: write
 
@@ -39,6 +40,23 @@ jobs:
 
       - name: Install deps
         run: pip install -r requirements.txt
+
+      - name: Auto-feed any new match results (ESPN, keyless)
+        continue-on-error: true                # an API blip must not block the deploy
+        run: python src/auto_feed_results.py
+
+      - name: Commit & push new results (if any)
+        continue-on-error: true                # if push races another build, retry next cron
+        run: |
+          if [ -n "$(git status --porcelain ledger/wc_results.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add ledger/wc_results.json
+            # [skip ci] in the message prevents the new commit from re-triggering this workflow,
+            # so we never loop on the auto-feed → push → auto-feed → push cycle.
+            git commit -m "auto-feed: new match results [skip ci]"
+            git push origin HEAD:${GITHUB_REF##*/}
+          fi
 
       - name: Build the board (live Polymarket data)
         # Repo Variables activate optional features; unset = feature omitted.
