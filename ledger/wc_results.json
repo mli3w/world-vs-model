@@ -26,5 +26,12 @@
     "ga": 4,
     "gb": 1,
     "stage": "group"
+  },
+  {
+    "a": "Qatar",
+    "b": "Switzerland",
+    "ga": 1,
+    "gb": 1,
+    "stage": "group"
   }
 ]
