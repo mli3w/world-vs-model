@@ -61,5 +61,12 @@
     "ga": 7,
     "gb": 1,
     "stage": "group"
+  },
+  {
+    "a": "Netherlands",
+    "b": "Japan",
+    "ga": 2,
+    "gb": 2,
+    "stage": "group"
   }
 ]
