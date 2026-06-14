@@ -33,5 +33,19 @@
     "ga": 1,
     "gb": 1,
     "stage": "group"
+  },
+  {
+    "a": "Brazil",
+    "b": "Morocco",
+    "ga": 1,
+    "gb": 1,
+    "stage": "group"
+  },
+  {
+    "a": "Haiti",
+    "b": "Scotland",
+    "ga": 0,
+    "gb": 1,
+    "stage": "group"
   }
 ]
