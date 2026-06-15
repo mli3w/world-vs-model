@@ -82,5 +82,12 @@
     "ga": 5,
     "gb": 1,
     "stage": "group"
+  },
+  {
+    "a": "Spain",
+    "b": "Cape Verde",
+    "ga": 0,
+    "gb": 0,
+    "stage": "group"
   }
 ]
