@@ -96,5 +96,19 @@
     "ga": 1,
     "gb": 1,
     "stage": "group"
+  },
+  {
+    "a": "Saudi Arabia",
+    "b": "Uruguay",
+    "ga": 1,
+    "gb": 1,
+    "stage": "group"
+  },
+  {
+    "a": "Iran",
+    "b": "New Zealand",
+    "ga": 2,
+    "gb": 2,
+    "stage": "group"
   }
 ]
