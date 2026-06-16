@@ -110,5 +110,12 @@
     "ga": 2,
     "gb": 2,
     "stage": "group"
+  },
+  {
+    "a": "France",
+    "b": "Senegal",
+    "ga": 3,
+    "gb": 1,
+    "stage": "group"
   }
 ]
