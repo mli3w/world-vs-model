@@ -117,5 +117,19 @@
     "ga": 3,
     "gb": 1,
     "stage": "group"
+  },
+  {
+    "a": "Iraq",
+    "b": "Norway",
+    "ga": 1,
+    "gb": 4,
+    "stage": "group"
+  },
+  {
+    "a": "Argentina",
+    "b": "Algeria",
+    "ga": 3,
+    "gb": 0,
+    "stage": "group"
   }
 ]
