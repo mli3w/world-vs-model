@@ -131,5 +131,12 @@
     "ga": 3,
     "gb": 0,
     "stage": "group"
+  },
+  {
+    "a": "Austria",
+    "b": "Jordan",
+    "ga": 3,
+    "gb": 1,
+    "stage": "group"
   }
 ]
