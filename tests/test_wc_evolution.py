@@ -44,3 +44,41 @@ def test_surprises_surface_upsets_and_flops_not_expected_results():
 def test_dormant_when_no_results():
     assert E.forecast_moves({}, {}) == []
     assert E.surprises([]) == []
+    assert E.match_upsets([], {}) == []
+
+
+def test_match_upsets_surface_underdog_wins_and_drop_expected_results():
+    ratings = {
+        "Australia": 1775, "Türkiye": 1906,            # +131 gap → ~32%/40%/28% with draws
+        "Germany": 1925, "Curaçao": 1433,              # +492 → favourite ~93%, near-zero surprise
+        "France": 2081, "Senegal": 1866,               # +215 → favourite ~55%, draws ~28%
+    }
+    results = [
+        {"a": "Australia", "b": "Türkiye", "ga": 2, "gb": 0, "stage": "group"},   # underdog win
+        {"a": "Germany",   "b": "Curaçao", "ga": 7, "gb": 1, "stage": "group"},    # expected blowout
+        {"a": "France",    "b": "Senegal", "ga": 3, "gb": 1, "stage": "group"},    # favourite win
+    ]
+    ups = E.match_upsets(results, ratings, top=5, min_bits=0.8)
+    teams = [(u["a"], u["b"]) for u in ups]
+    assert ("Australia", "Türkiye") in teams                # surfaces the upset
+    assert ("Germany", "Curaçao") not in teams              # boring blowout filtered out
+    # the underdog win should have the highest surprisal bits among returned
+    au = next(u for u in ups if u["a"] == "Australia")
+    assert au["kind"] == "A_win" and au["bits"] > 1.0       # >1 bit of surprise
+    assert au["winner"] == "Australia"
+
+
+def test_match_upsets_handles_draws_correctly():
+    ratings = {"Spain": 2157, "Cape Verde": 1578}            # +579 → ~95%/3%/28% allocation
+    # A score draw is genuinely shocking when Elo gap is huge — 28% draw rate but the gap is enormous
+    results = [{"a": "Spain", "b": "Cape Verde", "ga": 0, "gb": 0, "stage": "group"}]
+    ups = E.match_upsets(results, ratings, top=3, min_bits=0.5)
+    # Draw was given ~28% pre-match = ~1.8 bits; should surface
+    assert len(ups) == 1 and ups[0]["kind"] == "draw"
+    assert ups[0]["winner"] is None
+    assert ups[0]["bits"] > 1.0
+
+
+def test_match_upsets_skips_unknown_teams():
+    results = [{"a": "Atlantis", "b": "Wakanda", "ga": 3, "gb": 1}]
+    assert E.match_upsets(results, {"Spain": 2157}) == []

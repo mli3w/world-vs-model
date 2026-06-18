@@ -21,24 +21,25 @@ def test_evolution_panel_dormant_then_lights_up(tmp_path):
                              results_path=str(tmp_path / "none.json"))
     assert "id=unfolds" in dorm and "Lights up once the first games" in dorm
 
-    # lights up once results exist: a frozen forecast + a resolved upset, and a live swing
+    # lights up once results exist: a frozen forecast + a played match that's a real upset
     pred = tmp_path / "predictions.jsonl"
     rows = [
         {"date": "2026-06-07", "model": "elo", "level": "win", "team": nz("Spain"),
          "prob": 0.17, "market": 0.16, "outcome": None},
         {"date": "2026-06-07", "model": "elo", "level": "win", "team": nz("Morocco"),
          "prob": 0.02, "market": 0.02, "outcome": None},
-        {"date": "2026-06-07", "model": "elo", "level": "advance", "team": nz("Saudi Arabia"),
-         "prob": 0.18, "market": 0.14, "outcome": 1},        # an upset that resolved
     ]
     pred.write_text("\n".join(json.dumps(r) for r in rows), encoding="utf-8")
+    # Australia (Elo ~1775) beating Türkiye (Elo ~1906) 2-0 is a real ~1.8-bit upset
     res = tmp_path / "wc_results.json"
-    res.write_text(json.dumps([{"a": "Spain", "b": "Morocco", "ga": 1, "gb": 0, "stage": "group"}]), encoding="utf-8")
-    live = {"win": {nz("Spain"): 0.15, nz("Morocco"): 0.16}}  # Morocco surged since kickoff
+    res.write_text(json.dumps([{"a": "Australia", "b": "Türkiye", "ga": 2, "gb": 0, "stage": "group"}]),
+                   encoding="utf-8")
+    live = {"win": {nz("Spain"): 0.155, nz("Morocco"): 0.025}}      # Spain slightly down, Morocco slightly up
     h = B._evolution_html(live, pred_path=str(pred), results_path=str(res))
-    assert "Lights up once" not in h                          # not dormant
-    assert "pp</span> to win" in h                            # a forecast move rendered
-    assert "made it into the last 32" in h                    # the upset surfaced as a surprise
+    assert "Lights up once" not in h                                # not dormant
+    assert "Biggest match upsets" in h                              # the new match-upsets section is rendered
+    assert "AUS" in h and "TUR" in h                                # the Australia upset surfaced
+    assert "bits" in h                                              # surprisal scoring shown
 
 
 def test_analytics_beacon_is_opt_in():

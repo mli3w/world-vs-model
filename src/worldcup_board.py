@@ -440,36 +440,44 @@ def _evolution_html(fundamental, pred_path=PREDICTIONS, results_path=RESULTS_PAT
     nz = WM.WL._norm
     frozen_win = {t: r["prob"] for (m, l, t), r in committed.items() if m == "elo" and l == "win"}
     live_win = {nz(t): v for t, v in fundamental.get("win", {}).items()}
-    moves = EV.forecast_moves(frozen_win, live_win, top=6, min_delta=0.02)
-    resolved = [dict(level=l, team=t, model=r["prob"], market=r.get("market"), outcome=r["outcome"])
-                for (m, l, t), r in committed.items() if m == "elo" and r.get("outcome") is not None]
-    shocks = EV.surprises(resolved, top=6)
+    # 0.005 (0.5pp) is the right threshold for the in-tournament phase: title-odds barely move per
+    # match because most groups have 4+ matches still to play; 2pp would only fire after the QFs.
+    moves = EV.forecast_moves(frozen_win, live_win, top=6, min_delta=0.005)
+    # Match-level upsets: each played match's actual outcome scored against its pre-match Elo prior.
+    # Surfaces "Australia beat Türkiye 2-0" type stories which the level-rooted scorecard misses.
+    ratings = WF.ratings()                                  # tournament-base Elo (host bonus + shrink)
+    upsets = EV.match_upsets(results, ratings, top=6, min_bits=0.8)
 
     def _chip(t):
         return f'{WM.flag_img(t)}<b>{WM.code(t)}</b>'
 
     mv_html = "".join(
         f'<li>{_chip(m["team"])} <span class="{"pos" if m["delta"]>0 else "neg"}">'
-        f'{m["delta"]*100:+.0f} pp</span> to win '
-        f'<span class=sub>({m["frozen"]*100:.0f}% → {m["live"]*100:.0f}%)</span></li>'
+        f'{m["delta"]*100:+.1f} pp</span> to win '
+        f'<span class=sub>({m["frozen"]*100:.1f}% → {m["live"]*100:.1f}%)</span></li>'
         for m in moves) or '<li class=sub>no notable swings in title odds yet</li>'
-    sh_html = "".join(
-        f'<li>{_chip(s["team"])} '
-        + (f'made it {_UNFOLD_PHRASE.get(s["level"], "through")}' if s["kind"] == "upset"
-           else f'fell short {_UNFOLD_PHRASE.get(s["level"], "")}')
-        + f' — model <span class=eloc>{s["model"]*100:.0f}%</span> · market '
-        f'<span class=world>{s["market"]*100:.0f}%</span> '
-        f'<span class=sub>({s["combined"]:.1f} bits · '
-        f'{"model called it" if s["called_better"]=="model" else "market called it" if s["called_better"]=="market" else "both fooled"})</span></li>'
-        for s in shocks) or '<li class=sub>no big shocks yet — the favourites are holding</li>'
+    up_html = "".join(
+        '<li>' + (
+            f'{_chip(u["winner"])} <b>{u["ga"]}-{u["gb"]}</b> '
+            f'{_chip(u["b"] if u["winner"]==u["a"] else u["a"])}'
+            if u["winner"] else
+            f'{_chip(u["a"])} <b>{u["ga"]}-{u["gb"]}</b> {_chip(u["b"])} (draw)'
+        ) + (
+            f' <span class=sub>(pre-match Elo: '
+            f'<span class="{"pos" if u["winner"]==u["a"] else ""}">{u["pa"]*100:.0f}%</span>'
+            f' / draw {u["pd"]*100:.0f}% / '
+            f'<span class="{"pos" if u["winner"]==u["b"] else ""}">{u["pb"]*100:.0f}%</span>'
+            f' · <b>{u["bits"]:.1f} bits</b>)</span></li>'
+        ) for u in upsets) or '<li class=sub>no big upsets yet — the favourites are holding</li>'
     return (head
             + '<div class=grid><div><h3>Biggest forecast moves <span class=sub>(title odds since '
             'kickoff)</span></h3><ul class=evlist>' + mv_html + '</ul></div>'
-            '<div><h3>Biggest surprises <span class=sub>(and who saw them coming)</span></h3>'
-            '<ul class=evlist>' + sh_html + '</ul></div></div>'
+            '<div><h3>Biggest match upsets <span class=sub>(played matches by pre-match surprisal)'
+            '</span></h3><ul class=evlist>' + up_html + '</ul></div></div>'
             '<p class="note sub">Surprise is measured in <b>bits</b> (−log₂ of the chance given) — a '
-            'coin-flip that lands is 1 bit, a 1-in-8 is 3. The frozen kickoff call is the headline; '
-            'this is the living companion.</p>')
+            'coin-flip that lands is 1 bit, a 1-in-8 is 3. Pre-match probability is derived from each '
+            'side\'s pre-tournament Elo (28% allotted to draws per football base rate). The frozen '
+            'kickoff call is the headline; this is the living companion.</p>')
 
 
 def _kickoff_note(today=None):
