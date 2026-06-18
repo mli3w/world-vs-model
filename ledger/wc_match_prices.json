@@ -258,5 +258,18 @@
     "kickoff": "2026-06-18T16:00:00Z",
     "asof": "2026-06-18T20:36:13.669099Z",
     "source": "polymarket"
+  },
+  "bosnia-herzegovina__switzerland": {
+    "a": "Switzerland",
+    "b": "Bosnia-Herzegovina",
+    "pa": 0.6219,
+    "pd": 0.2338,
+    "pb": 0.1443,
+    "raw_pa": 0.625,
+    "raw_pd": 0.235,
+    "raw_pb": 0.145,
+    "kickoff": "2026-06-18T19:00:00Z",
+    "asof": "2026-06-18T23:00:04.677729Z",
+    "source": "polymarket"
   }
 }

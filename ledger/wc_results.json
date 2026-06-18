@@ -173,5 +173,12 @@
     "ga": 1,
     "gb": 1,
     "stage": "group"
+  },
+  {
+    "a": "Switzerland",
+    "b": "Bosnia-Herzegovina",
+    "ga": 4,
+    "gb": 1,
+    "stage": "group"
   }
 ]
