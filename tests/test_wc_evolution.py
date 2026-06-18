@@ -69,14 +69,29 @@ def test_match_upsets_surface_underdog_wins_and_drop_expected_results():
 
 
 def test_match_upsets_handles_draws_correctly():
-    ratings = {"Spain": 2157, "Cape Verde": 1578}            # +579 → ~95%/3%/28% allocation
-    # A score draw is genuinely shocking when Elo gap is huge — 28% draw rate but the gap is enormous
+    ratings = {"Spain": 2157, "Cape Verde": 1578}            # +579 Elo gap is enormous
     results = [{"a": "Spain", "b": "Cape Verde", "ga": 0, "gb": 0, "stage": "group"}]
     ups = E.match_upsets(results, ratings, top=3, min_bits=0.5)
-    # Draw was given ~28% pre-match = ~1.8 bits; should surface
+    # Strength-aware draw rate: ~9% at this Elo gap → -log2(0.09) ≈ 3.4 bits of shock,
+    # not the ~1.8 bits a flat 28% would give. A Spain draw against Cape Verde IS a top-tier upset.
     assert len(ups) == 1 and ups[0]["kind"] == "draw"
     assert ups[0]["winner"] is None
-    assert ups[0]["bits"] > 1.0
+    assert ups[0]["bits"] > 3.0                              # was: > 1.0 under flat-28% draw rate
+    assert ups[0]["pd"] < 0.15                                # draw rate decayed well below 28%
+
+
+def test_elo_draw_rate_decays_with_strength_gap():
+    """The strength-aware draw rate must fall as the Elo gap widens — 28% for equal teams down
+    toward a single-digit floor for huge mismatches, where the favourite scores too often for a
+    draw to stay realistic. Calibrated against international-football priors."""
+    assert abs(E._elo_draw_rate(0) - 0.28) < 1e-9               # equal teams: keep 28%
+    assert E._elo_draw_rate(200) < 0.27                          # mild gap: already dropping
+    assert E._elo_draw_rate(400) < 0.18                          # big gap: well below 28%
+    assert E._elo_draw_rate(600) < 0.12                          # huge gap: roughly halved
+    assert E._elo_draw_rate(800) < 0.10                          # extreme: near the floor
+    assert E._elo_draw_rate(2000) > 0.05                         # asymptote stays above zero
+    # symmetric in sign
+    assert abs(E._elo_draw_rate(500) - E._elo_draw_rate(-500)) < 1e-9
 
 
 def test_match_upsets_skips_unknown_teams():

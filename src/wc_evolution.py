@@ -39,14 +39,27 @@ def forecast_moves(frozen, live, top=6, min_delta=0.02):
     return out[:top]
 
 
-def match_upsets(results, ratings, prices=None, top=6, draw_rate=0.28, min_bits=0.8):
+def _elo_draw_rate(elo_diff, base=0.28, floor=0.06, scale=420.0):
+    """Draw rate as a function of |Elo gap| (international football empirical).
+
+    A flat 28% draw rate dramatically *understates* how shocking a draw is when the favourite is
+    massively rated above the underdog — Spain (~2160) vs Cape Verde (~1580) draws far less than
+    28% of the time in practice, because Spain scores enough to convert the draw into a win in
+    most games where they don't lose. So as the Elo gap widens, the prior draw probability should
+    fall off, asymptoting to a small floor (≈6%) for huge mismatches. The Gaussian decay around
+    a ~420-Elo scale is calibrated so that: gap=0→28%, gap=200→24%, gap=400→15%, gap=600→9%.
+    """
+    return floor + (base - floor) * math.exp(-(abs(elo_diff) / scale) ** 2)
+
+
+def match_upsets(results, ratings, prices=None, top=6, min_bits=0.8):
     """Rank played MATCHES by how surprising the result was.
 
     `results`: list of {a, b, ga, gb} (team names + final scoreline).
-    `ratings`: dict team_name -> Elo rating.  Pre-match Elo prior:
+    `ratings`: dict team_name -> Elo rating. Pre-match Elo prior:
                 P(A wins | no draw) = 1 / (1 + 10^((Elo_b − Elo_a)/400)),
-              with `draw_rate` (default 28%, a realistic football draw frequency) allotted to
-              draws and the rest split by Elo.
+              with a strength-aware draw rate (see `_elo_draw_rate`) — bigger Elo gap → lower
+              draw probability — and the rest split by Elo.
     `prices` : optional dict {(a_lc, b_lc): (pa, pd, pb)} of pre-match POLYMARKET prices.
               When a match's pair is in the dict, that overrides the Elo prior and the upset is
               tagged with source="polymarket"; otherwise we fall back to Elo. `(a_lc, b_lc)` is
@@ -75,9 +88,10 @@ def match_upsets(results, ratings, prices=None, top=6, draw_rate=0.28, min_bits=
             source = "polymarket"
         elif ra is not None and rb is not None:
             pa_nd = 1.0 / (1.0 + 10 ** ((rb - ra) / 400.0))
-            pa = pa_nd * (1 - draw_rate)
-            pb = (1 - pa_nd) * (1 - draw_rate)
-            pd = draw_rate
+            dr = _elo_draw_rate(ra - rb)
+            pa = pa_nd * (1 - dr)
+            pb = (1 - pa_nd) * (1 - dr)
+            pd = dr
             source = "elo"
         else:
             continue                                          # no prior for this match at all

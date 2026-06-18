@@ -447,7 +447,11 @@ def _evolution_html(fundamental, pred_path=PREDICTIONS, results_path=RESULTS_PAT
     # Match-level upsets: each played match's actual outcome scored against its pre-match prior.
     # Prefer cached Polymarket pre-match prices (sharper than Elo, since they integrate every
     # trader's info); fall back to Elo where we don't have a Polymarket snapshot.
-    ratings = WF.ratings()                                  # tournament-base Elo (host bonus + shrink)
+    # Use UNSHRUNK Elo (raw eloratings.net + host bonus) for the single-match prior. The default
+    # `WF.ratings()` shrinks toward the field mean — appropriate for full-tournament Monte Carlo
+    # paths, but it collapses Spain↔Cape Verde to ~half its real Elo gap and severely
+    # under-rates the surprise of a draw there. `shrink=1.0` keeps the real gap.
+    ratings = WF.ratings(shrink=1.0)
     polymarket_prices = {}
     try:
         with open(MATCH_PRICES_PATH, encoding="utf-8") as f:
