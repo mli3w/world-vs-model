@@ -39,36 +39,48 @@ def forecast_moves(frozen, live, top=6, min_delta=0.02):
     return out[:top]
 
 
-def match_upsets(results, ratings, top=6, draw_rate=0.28, min_bits=0.8):
-    """Rank played MATCHES by how surprising the result was, vs a pre-match Elo prior.
+def match_upsets(results, ratings, prices=None, top=6, draw_rate=0.28, min_bits=0.8):
+    """Rank played MATCHES by how surprising the result was.
 
     `results`: list of {a, b, ga, gb} (team names + final scoreline).
-    `ratings`: dict team_name -> Elo rating.  We use this to derive a pre-match prior:
+    `ratings`: dict team_name -> Elo rating.  Pre-match Elo prior:
                 P(A wins | no draw) = 1 / (1 + 10^((Elo_b − Elo_a)/400)),
-              then allocate `draw_rate` (default 28%, a realistic football draw frequency) to
-              the draw outcome and split the rest by Elo.
-    Surprisal is computed against the actual outcome (A win / draw / B win) and matches above
-    `min_bits` of surprise are returned, sorted descending by surprisal.
-
-    Note: this is *Elo*-implied surprisal, not market-implied. A future revision can substitute
-    a per-match Polymarket pre-match snapshot for an even sharper benchmark. Until then, Elo is a
-    reasonable and reproducible prior.
+              with `draw_rate` (default 28%, a realistic football draw frequency) allotted to
+              draws and the rest split by Elo.
+    `prices` : optional dict {(a_lc, b_lc): (pa, pd, pb)} of pre-match POLYMARKET prices.
+              When a match's pair is in the dict, that overrides the Elo prior and the upset is
+              tagged with source="polymarket"; otherwise we fall back to Elo. `(a_lc, b_lc)` is
+              the lowercase, alphabetised pair tuple.
     """
+    prices = prices or {}
     out = []
     for r in results:
         a, b = r.get("a"), r.get("b")
         ra, rb = ratings.get(a), ratings.get(b)
-        if ra is None or rb is None:
-            continue
         try:
             ga, gb = int(r.get("ga")), int(r.get("gb"))
         except (TypeError, ValueError):
             continue
-        # Pre-match Elo win prob (no-draw, logistic), then draw-rate-aware allocation.
-        pa_nd = 1.0 / (1.0 + 10 ** ((rb - ra) / 400.0))
-        pa = pa_nd * (1 - draw_rate)
-        pb = (1 - pa_nd) * (1 - draw_rate)
-        pd = draw_rate
+        # Prefer Polymarket pre-match prices if we have them; else fall back to Elo.
+        key = tuple(sorted([(a or "").lower(), (b or "").lower()]))
+        pm = prices.get(key)
+        if pm is not None and a and b:
+            # Stored as (pa, pd, pb) with a in alphabetical order — re-orient to the result row's a/b
+            stored_a, stored_b = key                           # alphabetical
+            spa, spd, spb = pm
+            if (a or "").lower() == stored_a:
+                pa, pd, pb = spa, spd, spb
+            else:
+                pa, pd, pb = spb, spd, spa
+            source = "polymarket"
+        elif ra is not None and rb is not None:
+            pa_nd = 1.0 / (1.0 + 10 ** ((rb - ra) / 400.0))
+            pa = pa_nd * (1 - draw_rate)
+            pb = (1 - pa_nd) * (1 - draw_rate)
+            pd = draw_rate
+            source = "elo"
+        else:
+            continue                                          # no prior for this match at all
 
         if ga > gb:
             kind, prob, winner = "A_win", pa, a
@@ -82,7 +94,7 @@ def match_upsets(results, ratings, top=6, draw_rate=0.28, min_bits=0.8):
         out.append(dict(a=a, b=b, ga=ga, gb=gb, winner=winner, kind=kind,
                         pa=round(pa, 4), pb=round(pb, 4), pd=round(pd, 4),
                         actual_prob=round(prob, 4), bits=round(bits, 2),
-                        stage=r.get("stage", "group")))
+                        source=source, stage=r.get("stage", "group")))
     out.sort(key=lambda x: -x["bits"])
     return out[:top]
 

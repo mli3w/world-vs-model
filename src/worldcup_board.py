@@ -40,6 +40,7 @@ BRACKET_SCORE = os.path.join("ledger", "bracket_score.json")  # the knockout-bra
 BMA_PATH = os.path.join("ledger", "bma.json")             # per-level model weights + ensemble probs
 PREDICTIONS = os.path.join("ledger", "predictions.jsonl")  # the timestamped forecast ledger
 RESULTS_PATH = os.path.join("ledger", "wc_results.json")  # played matches -> live Elo re-forecast
+MATCH_PRICES_PATH = os.path.join("ledger", "wc_match_prices.json")  # cached pre-match Polymarket prices
 
 # the live site (GitHub Pages). Used for ABSOLUTE og:image / og:url — social scrapers (LinkedIn in
 # particular) won't resolve a relative image, so the share card needs the full URL.
@@ -443,10 +444,27 @@ def _evolution_html(fundamental, pred_path=PREDICTIONS, results_path=RESULTS_PAT
     # 0.005 (0.5pp) is the right threshold for the in-tournament phase: title-odds barely move per
     # match because most groups have 4+ matches still to play; 2pp would only fire after the QFs.
     moves = EV.forecast_moves(frozen_win, live_win, top=6, min_delta=0.005)
-    # Match-level upsets: each played match's actual outcome scored against its pre-match Elo prior.
-    # Surfaces "Australia beat Türkiye 2-0" type stories which the level-rooted scorecard misses.
+    # Match-level upsets: each played match's actual outcome scored against its pre-match prior.
+    # Prefer cached Polymarket pre-match prices (sharper than Elo, since they integrate every
+    # trader's info); fall back to Elo where we don't have a Polymarket snapshot.
     ratings = WF.ratings()                                  # tournament-base Elo (host bonus + shrink)
-    upsets = EV.match_upsets(results, ratings, top=6, min_bits=0.8)
+    polymarket_prices = {}
+    try:
+        with open(MATCH_PRICES_PATH, encoding="utf-8") as f:
+            cache = _json.load(f) or {}
+        for _key, entry in cache.items():
+            if entry.get("source") != "polymarket":
+                continue
+            a_lc, b_lc = (entry.get("a") or "").lower(), (entry.get("b") or "").lower()
+            sorted_key = tuple(sorted([a_lc, b_lc]))
+            # store as (pa, pd, pb) ALPHABETIZED order
+            if a_lc < b_lc:
+                polymarket_prices[sorted_key] = (entry["pa"], entry["pd"], entry["pb"])
+            else:
+                polymarket_prices[sorted_key] = (entry["pb"], entry["pd"], entry["pa"])
+    except (FileNotFoundError, ValueError):
+        polymarket_prices = {}
+    upsets = EV.match_upsets(results, ratings, prices=polymarket_prices, top=6, min_bits=0.8)
 
     def _chip(t):
         return f'{WM.flag_img(t)}<b>{WM.code(t)}</b>'
@@ -456,6 +474,9 @@ def _evolution_html(fundamental, pred_path=PREDICTIONS, results_path=RESULTS_PAT
         f'{m["delta"]*100:+.1f} pp</span> to win '
         f'<span class=sub>({m["frozen"]*100:.1f}% → {m["live"]*100:.1f}%)</span></li>'
         for m in moves) or '<li class=sub>no notable swings in title odds yet</li>'
+    def _src_label(u):
+        return ("pre-match Polymarket" if u.get("source") == "polymarket"
+                else "pre-match Elo")
     up_html = "".join(
         '<li>' + (
             f'{_chip(u["winner"])} <b>{u["ga"]}-{u["gb"]}</b> '
@@ -463,7 +484,7 @@ def _evolution_html(fundamental, pred_path=PREDICTIONS, results_path=RESULTS_PAT
             if u["winner"] else
             f'{_chip(u["a"])} <b>{u["ga"]}-{u["gb"]}</b> {_chip(u["b"])} (draw)'
         ) + (
-            f' <span class=sub>(pre-match Elo: '
+            f' <span class=sub>({_src_label(u)}: '
             f'<span class="{"pos" if u["winner"]==u["a"] else ""}">{u["pa"]*100:.0f}%</span>'
             f' / draw {u["pd"]*100:.0f}% / '
             f'<span class="{"pos" if u["winner"]==u["b"] else ""}">{u["pb"]*100:.0f}%</span>'
@@ -472,12 +493,14 @@ def _evolution_html(fundamental, pred_path=PREDICTIONS, results_path=RESULTS_PAT
     return (head
             + '<div class=grid><div><h3>Biggest forecast moves <span class=sub>(title odds since '
             'kickoff)</span></h3><ul class=evlist>' + mv_html + '</ul></div>'
-            '<div><h3>Biggest match upsets <span class=sub>(played matches by pre-match surprisal)'
-            '</span></h3><ul class=evlist>' + up_html + '</ul></div></div>'
+            '<div><h3>Biggest match upsets <span class=sub>(played matches the markets didn\'t see '
+            'coming)</span></h3><ul class=evlist>' + up_html + '</ul></div></div>'
             '<p class="note sub">Surprise is measured in <b>bits</b> (−log₂ of the chance given) — a '
-            'coin-flip that lands is 1 bit, a 1-in-8 is 3. Pre-match probability is derived from each '
-            'side\'s pre-tournament Elo (28% allotted to draws per football base rate). The frozen '
-            'kickoff call is the headline; this is the living companion.</p>')
+            'coin-flip that lands is 1 bit, a 1-in-8 is 3. Each upset shows the prior used: '
+            '<b>pre-match Polymarket</b> when we have a captured pre-match snapshot from the CLOB '
+            'history (the sharper benchmark — real money, integrating every trader\'s info), '
+            'otherwise <b>pre-match Elo</b> (a reproducible fallback). The frozen kickoff call is '
+            'the headline; this is the living companion.</p>')
 
 
 def _kickoff_note(today=None):

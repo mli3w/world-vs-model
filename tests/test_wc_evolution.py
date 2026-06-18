@@ -82,3 +82,34 @@ def test_match_upsets_handles_draws_correctly():
 def test_match_upsets_skips_unknown_teams():
     results = [{"a": "Atlantis", "b": "Wakanda", "ga": 3, "gb": 1}]
     assert E.match_upsets(results, {"Spain": 2157}) == []
+
+
+def test_match_upsets_prefers_polymarket_prices_when_provided():
+    ratings = {"Australia": 1775, "Türkiye": 1906}              # Elo would say AUS ~28% to win
+    results = [{"a": "Australia", "b": "Türkiye", "ga": 2, "gb": 0, "stage": "group"}]
+    # Polymarket priced AUS at 18% — sharper than Elo, so the upset surprisal is BIGGER
+    prices = {("australia", "türkiye"): (0.18, 0.26, 0.57)}     # alphabetised: A=australia, B=türkiye
+    out = E.match_upsets(results, ratings, prices=prices, top=3, min_bits=0.5)
+    assert out and out[0]["source"] == "polymarket"
+    # Polymarket gave Australia 18% — the actual win is ~log2(1/0.18) ≈ 2.5 bits, not Elo's ~1.8
+    assert out[0]["bits"] > 2.0
+    assert abs(out[0]["pa"] - 0.18) < 1e-3                       # AUS-win price from Polymarket
+
+
+def test_match_upsets_falls_back_to_elo_when_no_price():
+    ratings = {"Australia": 1775, "Türkiye": 1906}
+    results = [{"a": "Australia", "b": "Türkiye", "ga": 2, "gb": 0, "stage": "group"}]
+    out = E.match_upsets(results, ratings, prices={}, top=3, min_bits=0.5)   # empty cache
+    assert out and out[0]["source"] == "elo"
+
+
+def test_match_upsets_orients_prices_to_match_row_order():
+    # Stored alphabetised (A=australia, B=türkiye, so pa=AUS-win=0.18); if results lists Türkiye
+    # as team a, the function should still output pa = T.win = 0.57
+    ratings = {"Australia": 1775, "Türkiye": 1906}
+    prices = {("australia", "türkiye"): (0.18, 0.26, 0.57)}
+    results = [{"a": "Türkiye", "b": "Australia", "ga": 0, "gb": 2, "stage": "group"}]
+    out = E.match_upsets(results, ratings, prices=prices, top=3, min_bits=0.5)
+    assert out and abs(out[0]["pa"] - 0.57) < 1e-3              # Türkiye-win price now in the pa slot
+    assert abs(out[0]["pb"] - 0.18) < 1e-3                       # Australia-win in pb
+    assert out[0]["winner"] == "Australia"                       # outcome unchanged: B (Australia) won
