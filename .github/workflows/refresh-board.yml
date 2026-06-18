@@ -54,6 +54,10 @@ jobs:
         continue-on-error: true                # only updates the cache; falls back to Elo if it fails
         run: python src/snapshot_polymarket_prices.py
 
+      - name: Refresh the upcoming-matches model↔market disagreement preview
+        continue-on-error: true                # if Polymarket/ESPN blips, panel goes empty (graceful)
+        run: python src/wc_upcoming.py --window 3 --top 6 --min-gap 0.05
+
       - name: Commit & push new results (if any)
         continue-on-error: true                # if push races another build, retry next cron
         run: |

@@ -41,6 +41,7 @@ BMA_PATH = os.path.join("ledger", "bma.json")             # per-level model weig
 PREDICTIONS = os.path.join("ledger", "predictions.jsonl")  # the timestamped forecast ledger
 RESULTS_PATH = os.path.join("ledger", "wc_results.json")  # played matches -> live Elo re-forecast
 MATCH_PRICES_PATH = os.path.join("ledger", "wc_match_prices.json")  # cached pre-match Polymarket prices
+UPCOMING_PATH = os.path.join("ledger", "wc_upcoming.json")  # next-few-days model↔market disagreements
 
 # the live site (GitHub Pages). Used for ABSOLUTE og:image / og:url — social scrapers (LinkedIn in
 # particular) won't resolve a relative image, so the share card needs the full URL.
@@ -409,6 +410,62 @@ def _bma_html(path=BMA_PATH):
         'and the ensemble itself is now a third <a href="methodology.html">falsifiable</a> claim.</p>')
 
 
+def _upcoming_html(path=UPCOMING_PATH):
+    """Forward-looking preview: where the model & market most disagree on UPCOMING matches.
+    Reads ledger/wc_upcoming.json (built by wc_upcoming.py before the board build). Renders a
+    compact "watch these" list — the matches resolve the disagreement publicly, no retroactive
+    narrative. Returns '' when the cache is missing or empty so nothing half-built ships."""
+    import json as _json
+    try:
+        with open(path, encoding="utf-8") as f:
+            d = _json.load(f) or {}
+    except (FileNotFoundError, ValueError):
+        return ""
+    rows = d.get("matches") or []
+    if not rows:
+        return ""
+    # Pretty date: "Fri Jun 19" — KICKOFF year is implied by being in the WC window
+    def _pretty_date(iso):
+        try:
+            return dt.date.fromisoformat(iso).strftime("%a %b %-d")
+        except (ValueError, TypeError):
+            try:
+                return dt.date.fromisoformat(iso).strftime("%a %b %d").replace(" 0", " ")
+            except (ValueError, TypeError):
+                return iso
+    items = []
+    for m in rows:
+        a, b = m["a"], m["b"]
+        # The model and market each pick a side per outcome; the "gap" is on a specific outcome.
+        # Show that outcome clearly so the disagreement is a single legible number.
+        which = m["which"]
+        if which == "a_win":
+            label, model_p, mkt_p, side = f"{WM.code(a)} win", m["pa_m"], m["pa_x"], a
+        elif which == "b_win":
+            label, model_p, mkt_p, side = f"{WM.code(b)} win", m["pb_m"], m["pb_x"], b
+        else:
+            label, model_p, mkt_p, side = "draw", m["pd_m"], m["pd_x"], None
+        # Who's higher? "market more bullish on X" reads better than the raw signed number.
+        higher = "market" if mkt_p > model_p else "model"
+        lean = ("market is more bullish" if higher == "market"
+                else "model is more bullish")
+        items.append(
+            f'<li>{WM.flag_img(a)}<b>{WM.code(a)}</b> vs '
+            f'{WM.flag_img(b)}<b>{WM.code(b)}</b> '
+            f'<span class=sub>· {_pretty_date(m["date"])}</span> · '
+            f'<b>{m["gap"]*100:.0f}pp gap</b> on {label} '
+            f'<span class=sub>(market <b>{mkt_p*100:.0f}%</b> · model <b>{model_p*100:.0f}%</b> — '
+            f'{lean})</span></li>')
+    return (
+        '<div><h3>Watch next: where model &amp; market most disagree '
+        '<span class=sub>(next few days)</span></h3><ul class=evlist>'
+        + "".join(items) + '</ul>'
+        '<p class="note sub">For each upcoming match we compare our pre-match Elo prior '
+        '<i>(strength-aware draw rate · raw eloratings.net · USA/Canada/Mexico host bonus)</i> '
+        'against the live Polymarket price. The biggest disagreements are the matches with the '
+        'most at stake — resolve them publicly and the post-game scorecard writes itself.</p></div>')
+
+
 def _evolution_html(fundamental, pred_path=PREDICTIONS, results_path=RESULTS_PATH):
     """The 'as it unfolds' panel — how the model has moved since kickoff + the biggest shocks.
     Dormant until games are played (so it never looks broken pre-tournament)."""
@@ -417,7 +474,8 @@ def _evolution_html(fundamental, pred_path=PREDICTIONS, results_path=RESULTS_PAT
 
     results = load_results(results_path)
     head = ('<h2 id=unfolds>As it unfolds '
-            '<span class=sub>— how the model moved since kickoff, and the biggest shocks</span></h2>')
+            '<span class=sub>— what to watch next, how the model moved since kickoff, and the '
+            'biggest shocks</span></h2>')
     if not results:                                          # pre-tournament: dormant, but inviting
         return (head + '<p class=note>🔮 Lights up once the first games are played. The informed model '
                 're-forecasts after every result, so this will show <b>how it changed its mind</b> '
@@ -495,6 +553,7 @@ def _evolution_html(fundamental, pred_path=PREDICTIONS, results_path=RESULTS_PAT
             f' · <b>{u["bits"]:.1f} bits</b>)</span></li>'
         ) for u in upsets) or '<li class=sub>no big upsets yet — the favourites are holding</li>'
     return (head
+            + _upcoming_html()                                  # forward-looking preview (may be empty)
             + '<div class=grid><div><h3>Biggest forecast moves <span class=sub>(title odds since '
             'kickoff)</span></h3><ul class=evlist>' + mv_html + '</ul></div>'
             '<div><h3>Biggest match upsets <span class=sub>(played matches the markets didn\'t see '
