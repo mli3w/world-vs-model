@@ -245,5 +245,18 @@
     "kickoff": "2026-06-17T20:00:00Z",
     "asof": "2026-06-18T06:43:16.394822Z",
     "source": "polymarket"
+  },
+  "czechia__south africa": {
+    "a": "Czechia",
+    "b": "South Africa",
+    "pa": 0.5323,
+    "pd": 0.2637,
+    "pb": 0.204,
+    "raw_pa": 0.535,
+    "raw_pd": 0.265,
+    "raw_pb": 0.205,
+    "kickoff": "2026-06-18T16:00:00Z",
+    "asof": "2026-06-18T20:36:13.669099Z",
+    "source": "polymarket"
   }
 }
