@@ -152,5 +152,19 @@
     "ga": 4,
     "gb": 2,
     "stage": "group"
+  },
+  {
+    "a": "Ghana",
+    "b": "Panama",
+    "ga": 1,
+    "gb": 0,
+    "stage": "group"
+  },
+  {
+    "a": "Uzbekistan",
+    "b": "Colombia",
+    "ga": 1,
+    "gb": 3,
+    "stage": "group"
   }
 ]
