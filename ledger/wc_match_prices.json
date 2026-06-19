@@ -271,5 +271,18 @@
     "kickoff": "2026-06-18T19:00:00Z",
     "asof": "2026-06-18T23:00:04.677729Z",
     "source": "polymarket"
+  },
+  "canada__qatar": {
+    "a": "Canada",
+    "b": "Qatar",
+    "pa": 0.7512,
+    "pd": 0.1642,
+    "pb": 0.0846,
+    "raw_pa": 0.755,
+    "raw_pd": 0.165,
+    "raw_pb": 0.085,
+    "kickoff": "2026-06-18T22:00:00Z",
+    "asof": "2026-06-19T05:14:50.076311Z",
+    "source": "polymarket"
   }
 }

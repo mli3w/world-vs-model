@@ -180,5 +180,19 @@
     "ga": 4,
     "gb": 1,
     "stage": "group"
+  },
+  {
+    "a": "Canada",
+    "b": "Qatar",
+    "ga": 6,
+    "gb": 0,
+    "stage": "group"
+  },
+  {
+    "a": "Mexico",
+    "b": "South Korea",
+    "ga": 1,
+    "gb": 0,
+    "stage": "group"
   }
 ]
