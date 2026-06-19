@@ -194,5 +194,12 @@
     "ga": 1,
     "gb": 0,
     "stage": "group"
+  },
+  {
+    "a": "USA",
+    "b": "Australia",
+    "ga": 2,
+    "gb": 0,
+    "stage": "group"
   }
 ]

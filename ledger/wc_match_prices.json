@@ -284,5 +284,18 @@
     "kickoff": "2026-06-18T22:00:00Z",
     "asof": "2026-06-19T05:14:50.076311Z",
     "source": "polymarket"
+  },
+  "australia__usa": {
+    "a": "USA",
+    "b": "Australia",
+    "pa": 0.592,
+    "pd": 0.2239,
+    "pb": 0.1841,
+    "raw_pa": 0.595,
+    "raw_pd": 0.225,
+    "raw_pb": 0.185,
+    "kickoff": "2026-06-19T19:00:00Z",
+    "asof": "2026-06-19T22:11:30.623249Z",
+    "source": "polymarket"
   }
 }
