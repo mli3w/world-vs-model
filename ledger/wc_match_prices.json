@@ -349,5 +349,18 @@
     "kickoff": "2026-06-20T17:00:00Z",
     "asof": "2026-06-20T19:49:36.864978Z",
     "source": "polymarket"
+  },
+  "germany__ivory coast": {
+    "a": "Germany",
+    "b": "Ivory Coast",
+    "pa": 0.6884,
+    "pd": 0.1859,
+    "pb": 0.1256,
+    "raw_pa": 0.685,
+    "raw_pd": 0.185,
+    "raw_pb": 0.125,
+    "kickoff": "2026-06-20T20:00:00Z",
+    "asof": "2026-06-20T22:17:57.160344Z",
+    "source": "polymarket"
   }
 }

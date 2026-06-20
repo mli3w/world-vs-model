@@ -229,5 +229,12 @@
     "ga": 5,
     "gb": 1,
     "stage": "group"
+  },
+  {
+    "a": "Germany",
+    "b": "Ivory Coast",
+    "ga": 2,
+    "gb": 1,
+    "stage": "group"
   }
 ]
