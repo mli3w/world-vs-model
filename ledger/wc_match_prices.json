@@ -297,5 +297,31 @@
     "kickoff": "2026-06-19T19:00:00Z",
     "asof": "2026-06-19T22:11:30.623249Z",
     "source": "polymarket"
+  },
+  "morocco__scotland": {
+    "a": "Scotland",
+    "b": "Morocco",
+    "pa": 0.1527,
+    "pd": 0.2611,
+    "pb": 0.5862,
+    "raw_pa": 0.155,
+    "raw_pd": 0.265,
+    "raw_pb": 0.595,
+    "kickoff": "2026-06-19T22:00:00Z",
+    "asof": "2026-06-20T04:25:12.691145Z",
+    "source": "polymarket"
+  },
+  "brazil__haiti": {
+    "a": "Brazil",
+    "b": "Haiti",
+    "pa": 0.8806,
+    "pd": 0.0761,
+    "pb": 0.0433,
+    "raw_pa": 0.885,
+    "raw_pd": 0.0765,
+    "raw_pb": 0.0435,
+    "kickoff": "2026-06-20T00:30:00Z",
+    "asof": "2026-06-20T04:25:13.240384Z",
+    "source": "polymarket"
   }
 }
