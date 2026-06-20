@@ -222,5 +222,12 @@
     "ga": 0,
     "gb": 1,
     "stage": "group"
+  },
+  {
+    "a": "Netherlands",
+    "b": "Sweden",
+    "ga": 5,
+    "gb": 1,
+    "stage": "group"
   }
 ]
