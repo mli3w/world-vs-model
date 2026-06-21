@@ -362,5 +362,18 @@
     "kickoff": "2026-06-20T20:00:00Z",
     "asof": "2026-06-20T22:17:57.160344Z",
     "source": "polymarket"
+  },
+  "japan__tunisia": {
+    "a": "Tunisia",
+    "b": "Japan",
+    "pa": 0.1045,
+    "pd": 0.204,
+    "pb": 0.6915,
+    "raw_pa": 0.105,
+    "raw_pd": 0.205,
+    "raw_pb": 0.695,
+    "kickoff": "2026-06-21T04:00:00Z",
+    "asof": "2026-06-21T10:01:57.673142Z",
+    "source": "polymarket"
   }
 }
