@@ -250,5 +250,12 @@
     "ga": 0,
     "gb": 4,
     "stage": "group"
+  },
+  {
+    "a": "Spain",
+    "b": "Saudi Arabia",
+    "ga": 4,
+    "gb": 0,
+    "stage": "group"
   }
 ]
