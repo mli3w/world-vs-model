@@ -257,5 +257,12 @@
     "ga": 4,
     "gb": 0,
     "stage": "group"
+  },
+  {
+    "a": "Belgium",
+    "b": "Iran",
+    "ga": 0,
+    "gb": 0,
+    "stage": "group"
   }
 ]

@@ -388,5 +388,18 @@
     "kickoff": "2026-06-21T16:00:00Z",
     "asof": "2026-06-21T19:56:27.059857Z",
     "source": "polymarket"
+  },
+  "belgium__iran": {
+    "a": "Belgium",
+    "b": "Iran",
+    "pa": 0.6985,
+    "pd": 0.196,
+    "pb": 0.1055,
+    "raw_pa": 0.695,
+    "raw_pd": 0.195,
+    "raw_pb": 0.105,
+    "kickoff": "2026-06-21T19:00:00Z",
+    "asof": "2026-06-21T22:20:37.948903Z",
+    "source": "polymarket"
   }
 }
