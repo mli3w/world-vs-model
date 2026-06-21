@@ -236,5 +236,12 @@
     "ga": 2,
     "gb": 1,
     "stage": "group"
+  },
+  {
+    "a": "Ecuador",
+    "b": "Cura\u00e7ao",
+    "ga": 0,
+    "gb": 0,
+    "stage": "group"
   }
 ]
