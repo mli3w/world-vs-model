@@ -264,5 +264,19 @@
     "ga": 0,
     "gb": 0,
     "stage": "group"
+  },
+  {
+    "a": "Uruguay",
+    "b": "Cape Verde",
+    "ga": 2,
+    "gb": 2,
+    "stage": "group"
+  },
+  {
+    "a": "New Zealand",
+    "b": "Egypt",
+    "ga": 1,
+    "gb": 3,
+    "stage": "group"
   }
 ]

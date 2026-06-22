@@ -401,5 +401,18 @@
     "kickoff": "2026-06-21T19:00:00Z",
     "asof": "2026-06-21T22:20:37.948903Z",
     "source": "polymarket"
+  },
+  "egypt__new zealand": {
+    "a": "New Zealand",
+    "b": "Egypt",
+    "pa": 0.1542,
+    "pd": 0.2338,
+    "pb": 0.6119,
+    "raw_pa": 0.155,
+    "raw_pd": 0.235,
+    "raw_pb": 0.615,
+    "kickoff": "2026-06-22T01:00:00Z",
+    "asof": "2026-06-22T05:21:37.180895Z",
+    "source": "polymarket"
   }
 }
