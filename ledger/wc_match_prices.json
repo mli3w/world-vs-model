@@ -414,5 +414,18 @@
     "kickoff": "2026-06-22T01:00:00Z",
     "asof": "2026-06-22T05:21:37.180895Z",
     "source": "polymarket"
+  },
+  "argentina__austria": {
+    "a": "Argentina",
+    "b": "Austria",
+    "pa": 0.6716,
+    "pd": 0.2139,
+    "pb": 0.1144,
+    "raw_pa": 0.675,
+    "raw_pd": 0.215,
+    "raw_pb": 0.115,
+    "kickoff": "2026-06-22T17:00:00Z",
+    "asof": "2026-06-22T22:52:02.266283Z",
+    "source": "polymarket"
   }
 }

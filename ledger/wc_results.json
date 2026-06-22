@@ -278,5 +278,12 @@
     "ga": 1,
     "gb": 3,
     "stage": "group"
+  },
+  {
+    "a": "Argentina",
+    "b": "Austria",
+    "ga": 2,
+    "gb": 0,
+    "stage": "group"
   }
 ]
