@@ -427,5 +427,31 @@
     "kickoff": "2026-06-22T17:00:00Z",
     "asof": "2026-06-22T22:52:02.266283Z",
     "source": "polymarket"
+  },
+  "france__iraq": {
+    "a": "France",
+    "b": "Iraq",
+    "pa": 0.9127,
+    "pd": 0.0648,
+    "pb": 0.0224,
+    "raw_pa": 0.915,
+    "raw_pd": 0.065,
+    "raw_pb": 0.0225,
+    "kickoff": "2026-06-22T21:00:00Z",
+    "asof": "2026-06-23T04:15:03.877247Z",
+    "source": "polymarket"
+  },
+  "norway__senegal": {
+    "a": "Norway",
+    "b": "Senegal",
+    "pa": 0.4089,
+    "pd": 0.2808,
+    "pb": 0.3103,
+    "raw_pa": 0.415,
+    "raw_pd": 0.285,
+    "raw_pb": 0.315,
+    "kickoff": "2026-06-23T00:00:00Z",
+    "asof": "2026-06-23T04:15:04.728054Z",
+    "source": "polymarket"
   }
 }

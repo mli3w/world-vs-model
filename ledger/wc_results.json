@@ -285,5 +285,19 @@
     "ga": 2,
     "gb": 0,
     "stage": "group"
+  },
+  {
+    "a": "France",
+    "b": "Iraq",
+    "ga": 3,
+    "gb": 0,
+    "stage": "group"
+  },
+  {
+    "a": "Norway",
+    "b": "Senegal",
+    "ga": 3,
+    "gb": 2,
+    "stage": "group"
   }
 ]
