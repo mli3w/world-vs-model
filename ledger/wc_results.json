@@ -306,5 +306,12 @@
     "ga": 1,
     "gb": 2,
     "stage": "group"
+  },
+  {
+    "a": "Portugal",
+    "b": "Uzbekistan",
+    "ga": 5,
+    "gb": 0,
+    "stage": "group"
   }
 ]
