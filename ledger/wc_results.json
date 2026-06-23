@@ -299,5 +299,12 @@
     "ga": 3,
     "gb": 2,
     "stage": "group"
+  },
+  {
+    "a": "Jordan",
+    "b": "Algeria",
+    "ga": 1,
+    "gb": 2,
+    "stage": "group"
   }
 ]

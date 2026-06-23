@@ -453,5 +453,18 @@
     "kickoff": "2026-06-23T00:00:00Z",
     "asof": "2026-06-23T04:15:04.728054Z",
     "source": "polymarket"
+  },
+  "algeria__jordan": {
+    "a": "Jordan",
+    "b": "Algeria",
+    "pa": 0.1343,
+    "pd": 0.2239,
+    "pb": 0.6418,
+    "raw_pa": 0.135,
+    "raw_pd": 0.225,
+    "raw_pb": 0.645,
+    "kickoff": "2026-06-23T03:00:00Z",
+    "asof": "2026-06-23T09:59:08.811878Z",
+    "source": "polymarket"
   }
 }
