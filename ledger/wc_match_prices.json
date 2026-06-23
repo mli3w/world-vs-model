@@ -466,5 +466,18 @@
     "kickoff": "2026-06-23T03:00:00Z",
     "asof": "2026-06-23T09:59:08.811878Z",
     "source": "polymarket"
+  },
+  "england__ghana": {
+    "a": "England",
+    "b": "Ghana",
+    "pa": 0.8227,
+    "pd": 0.1232,
+    "pb": 0.0542,
+    "raw_pa": 0.835,
+    "raw_pd": 0.125,
+    "raw_pb": 0.055,
+    "kickoff": "2026-06-23T20:00:00Z",
+    "asof": "2026-06-23T22:19:50.798169Z",
+    "source": "polymarket"
   }
 }
