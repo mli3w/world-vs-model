@@ -13,6 +13,33 @@ LADDER = {"advance": {}, "reach_QF": {}, "reach_SF": {}, "reach_F": {},
           "win": {"fav": 0.40, "strong": 0.25, "mid": 0.12, "weak": 0.04, "dog": 0.01}}
 
 
+def test_marked_rows_eliminated_short_is_max_profit(tmp_path):
+    import json
+    nz = B.WM.WL._norm
+    # an open short on a team the live ladder now prices at 0 (eliminated) must mark to MAX
+    # profit, not render blank; a team genuinely absent from the ladder stays blank ("—").
+    path = tmp_path / "book.jsonl"
+    rows = [
+        {"id": "advance:tunisia:0", "level": "advance", "team": nz("Tunisia"),
+         "shares": -59.7, "entry": 0.385, "status": "open", "realized": None},
+        {"id": "advance:ghost:1", "level": "advance", "team": nz("Ghana"),
+         "shares": -10.0, "entry": 0.20, "status": "open", "realized": None},
+    ]
+    path.write_text("\n".join(json.dumps(r) for r in rows))
+    # Tunisia present at 0 (eliminated); Ghana absent entirely (missing data)
+    ladder = {"advance": {nz("Tunisia"): 0.0}, "reach_QF": {}, "reach_SF": {},
+              "reach_F": {}, "win": {}}
+    marked, tot = B._marked_rows(ladder, str(path))
+    by = {r["team"]: r for r in marked}
+    tun = by[nz("Tunisia")]
+    assert tun["cur"] == 0.0 and tun["status"] == "open"
+    assert abs(tun["pnl"] - (-59.7 * (0.0 - 0.385))) < 1e-6   # +22.98, the max-profit mark
+    assert tun["pnl"] > 0
+    gha = by[nz("Ghana")]
+    assert gha["cur"] is None and gha["pnl"] is None          # missing data stays blank
+    assert abs(tot["unrealized"] - round(tun["pnl"], 2)) < 1e-6   # only the marked leg counts
+
+
 def test_evolution_panel_dormant_then_lights_up(tmp_path):
     import json
     nz = B.WM.WL._norm
