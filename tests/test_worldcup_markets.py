@@ -55,6 +55,40 @@ def test_book_spans_levels_and_signs_edges():
     assert by["fav"] > 0 > by["dog"]                      # power inflates favorite, deflates longshot
 
 
+class _FakeResp:
+    def __init__(self, payload):
+        self._payload = payload
+
+    def json(self):
+        return self._payload
+
+
+class _FakeSession:
+    """Returns one canned Gamma /events payload, ignoring url/params."""
+    def __init__(self, payload):
+        self._payload = payload
+
+    def get(self, *a, **k):
+        return _FakeResp(self._payload)
+
+
+def test_fetch_event_prices_keeps_resolved_zero_outcomes():
+    # A resolved event: one team eliminated (YES 0), one clinched (YES 1), one live (~0.5),
+    # and one never-traded market with no quote at all. The eliminated 0 must be KEPT (so a
+    # short marks to max profit instead of vanishing); only the no-data market is dropped.
+    payload = [{"markets": [
+        {"groupItemTitle": "Tunisia", "outcomePrices": "[\"0\", \"1\"]"},      # eliminated -> 0
+        {"groupItemTitle": "Argentina", "outcomePrices": "[\"1\", \"0\"]"},    # clinched -> 1
+        {"groupItemTitle": "Spain", "outcomePrices": "[\"0.52\", \"0.48\"]"},  # live
+        {"groupItemTitle": "Nowhere", "lastTradePrice": None},                 # no quote -> drop
+    ]}]
+    out = WM.fetch_event_prices("any-slug", session=_FakeSession(payload))
+    assert out[WL._norm("Tunisia")] == 0.0          # the bug: this used to be dropped
+    assert out[WL._norm("Argentina")] == 1.0
+    assert abs(out[WL._norm("Spain")] - 0.52) < 1e-9
+    assert WL._norm("Nowhere") not in out           # genuine no-data is still dropped
+
+
 def test_downsample_keeps_endpoints_and_caps_length():
     s = [i / 100 for i in range(100)]                     # 0.00 .. 0.99
     out = WM._downsample(s, 24)

@@ -154,19 +154,29 @@ def _session():
 
 
 def fetch_event_prices(slug, session=None):
-    """{normalized groupItemTitle -> current YES price} for one Gamma event (one call)."""
+    """{normalized groupItemTitle -> current YES price} for one Gamma event (one call).
+
+    A RESOLVED outcome quotes exactly 0 (eliminated) or 1 (clinched). We KEEP both — including a
+    resolved 0 — so a position on an eliminated team marks to 0 (a short then sits at MAX profit)
+    instead of silently vanishing: an absent team reads as a blank "—" everywhere downstream
+    (`worldcup_board._marked_rows`). Only a market with no quote at all (never traded, no
+    outcomePrices and no lastTradePrice) is dropped — that's missing data, not a real 0."""
     s = session or _session()
     evs = s.get(f"{GAMMA}/events", params=dict(slug=slug), timeout=30).json()
     out = {}
     for m in (evs[0].get("markets", []) if evs else []):
         name = m.get("groupItemTitle") or (m.get("question") or "")
+        if not name:
+            continue
         op = m.get("outcomePrices")
-        try:
+        try:                                            # a real quote (incl. a resolved 0 or 1)
             yes = float(json.loads(op)[0]) if isinstance(op, str) else float(op[0])
-        except Exception:
-            yes = float(m.get("lastTradePrice") or 0)
-        if name and yes > 0:
-            out[WL._norm(name)] = yes
+        except Exception:                               # no outcomePrices -> fall back to last trade
+            lt = m.get("lastTradePrice")
+            if lt is None:
+                continue                                # never traded, no price at all -> not a 0 mark
+            yes = float(lt)
+        out[WL._norm(name)] = yes
     return out
 
 
