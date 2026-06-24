@@ -334,5 +334,19 @@
     "ga": 1,
     "gb": 0,
     "stage": "group"
+  },
+  {
+    "a": "Bosnia-Herzegovina",
+    "b": "Qatar",
+    "ga": 3,
+    "gb": 1,
+    "stage": "group"
+  },
+  {
+    "a": "Switzerland",
+    "b": "Canada",
+    "ga": 2,
+    "gb": 1,
+    "stage": "group"
   }
 ]

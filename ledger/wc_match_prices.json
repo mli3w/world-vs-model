@@ -492,5 +492,31 @@
     "kickoff": "2026-06-23T23:00:00Z",
     "asof": "2026-06-24T04:17:45.500014Z",
     "source": "polymarket"
+  },
+  "bosnia-herzegovina__qatar": {
+    "a": "Bosnia-Herzegovina",
+    "b": "Qatar",
+    "pa": 0.7186,
+    "pd": 0.1658,
+    "pb": 0.1156,
+    "raw_pa": 0.715,
+    "raw_pd": 0.165,
+    "raw_pb": 0.115,
+    "kickoff": "2026-06-24T19:00:00Z",
+    "asof": "2026-06-24T22:24:07.967205Z",
+    "source": "polymarket"
+  },
+  "canada__switzerland": {
+    "a": "Switzerland",
+    "b": "Canada",
+    "pa": 0.3831,
+    "pd": 0.3234,
+    "pb": 0.2935,
+    "raw_pa": 0.385,
+    "raw_pd": 0.325,
+    "raw_pb": 0.295,
+    "kickoff": "2026-06-24T19:00:00Z",
+    "asof": "2026-06-24T22:24:08.545627Z",
+    "source": "polymarket"
   }
 }
