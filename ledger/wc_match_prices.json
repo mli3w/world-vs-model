@@ -557,5 +557,18 @@
     "kickoff": "2026-06-25T01:00:00Z",
     "asof": "2026-06-25T04:18:11.816330Z",
     "source": "polymarket"
+  },
+  "ecuador__germany": {
+    "a": "Ecuador",
+    "b": "Germany",
+    "pa": 0.191,
+    "pd": 0.202,
+    "pb": 0.607,
+    "raw_pa": 0.1915,
+    "raw_pd": 0.2025,
+    "raw_pb": 0.6085,
+    "kickoff": "2026-06-25T20:00:00Z",
+    "asof": "2026-06-25T22:26:50.113741Z",
+    "source": "polymarket"
   }
 }
