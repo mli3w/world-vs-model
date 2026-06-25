@@ -518,5 +518,44 @@
     "kickoff": "2026-06-24T19:00:00Z",
     "asof": "2026-06-24T22:24:08.545627Z",
     "source": "polymarket"
+  },
+  "haiti__morocco": {
+    "a": "Morocco",
+    "b": "Haiti",
+    "pa": 0.803,
+    "pd": 0.133,
+    "pb": 0.064,
+    "raw_pa": 0.815,
+    "raw_pd": 0.135,
+    "raw_pb": 0.065,
+    "kickoff": "2026-06-24T22:00:00Z",
+    "asof": "2026-06-25T04:18:10.447535Z",
+    "source": "polymarket"
+  },
+  "brazil__scotland": {
+    "a": "Scotland",
+    "b": "Brazil",
+    "pa": 0.0854,
+    "pd": 0.1658,
+    "pb": 0.7487,
+    "raw_pa": 0.085,
+    "raw_pd": 0.165,
+    "raw_pb": 0.745,
+    "kickoff": "2026-06-24T22:00:00Z",
+    "asof": "2026-06-25T04:18:11.116763Z",
+    "source": "polymarket"
+  },
+  "czechia__mexico": {
+    "a": "Czechia",
+    "b": "Mexico",
+    "pa": 0.2161,
+    "pd": 0.2362,
+    "pb": 0.5477,
+    "raw_pa": 0.215,
+    "raw_pd": 0.235,
+    "raw_pb": 0.545,
+    "kickoff": "2026-06-25T01:00:00Z",
+    "asof": "2026-06-25T04:18:11.816330Z",
+    "source": "polymarket"
   }
 }
