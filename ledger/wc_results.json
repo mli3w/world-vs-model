@@ -390,5 +390,33 @@
     "ga": 2,
     "gb": 1,
     "stage": "group"
+  },
+  {
+    "a": "Japan",
+    "b": "Sweden",
+    "ga": 1,
+    "gb": 1,
+    "stage": "group"
+  },
+  {
+    "a": "Tunisia",
+    "b": "Netherlands",
+    "ga": 1,
+    "gb": 3,
+    "stage": "group"
+  },
+  {
+    "a": "Paraguay",
+    "b": "Australia",
+    "ga": 0,
+    "gb": 0,
+    "stage": "group"
+  },
+  {
+    "a": "T\u00fcrkiye",
+    "b": "USA",
+    "ga": 3,
+    "gb": 2,
+    "stage": "group"
   }
 ]
