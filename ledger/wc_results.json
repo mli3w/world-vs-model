@@ -446,5 +446,19 @@
     "ga": 0,
     "gb": 1,
     "stage": "group"
+  },
+  {
+    "a": "Egypt",
+    "b": "Iran",
+    "ga": 1,
+    "gb": 1,
+    "stage": "group"
+  },
+  {
+    "a": "New Zealand",
+    "b": "Belgium",
+    "ga": 1,
+    "gb": 5,
+    "stage": "group"
   }
 ]

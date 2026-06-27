@@ -648,5 +648,31 @@
     "kickoff": "2026-06-26T19:00:00Z",
     "asof": "2026-06-26T22:20:48.246684Z",
     "source": "polymarket"
+  },
+  "egypt__iran": {
+    "a": "Egypt",
+    "b": "Iran",
+    "pa": 0.3632,
+    "pd": 0.3532,
+    "pb": 0.2836,
+    "raw_pa": 0.365,
+    "raw_pd": 0.355,
+    "raw_pb": 0.285,
+    "kickoff": "2026-06-27T03:00:00Z",
+    "asof": "2026-06-27T08:47:54.882758Z",
+    "source": "polymarket"
+  },
+  "belgium__new zealand": {
+    "a": "New Zealand",
+    "b": "Belgium",
+    "pa": 0.0653,
+    "pd": 0.1156,
+    "pb": 0.8191,
+    "raw_pa": 0.065,
+    "raw_pd": 0.115,
+    "raw_pb": 0.815,
+    "kickoff": "2026-06-27T03:00:00Z",
+    "asof": "2026-06-27T08:47:55.699856Z",
+    "source": "polymarket"
   }
 }
