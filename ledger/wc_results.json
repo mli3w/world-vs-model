@@ -432,5 +432,19 @@
     "ga": 5,
     "gb": 0,
     "stage": "group"
+  },
+  {
+    "a": "Cape Verde",
+    "b": "Saudi Arabia",
+    "ga": 0,
+    "gb": 0,
+    "stage": "group"
+  },
+  {
+    "a": "Uruguay",
+    "b": "Spain",
+    "ga": 0,
+    "gb": 1,
+    "stage": "group"
   }
 ]
