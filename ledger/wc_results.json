@@ -502,5 +502,12 @@
     "ga": 1,
     "gb": 3,
     "stage": "group"
+  },
+  {
+    "a": "South Africa",
+    "b": "Canada",
+    "ga": 0,
+    "gb": 1,
+    "stage": "ko"
   }
 ]

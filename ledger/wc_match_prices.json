@@ -726,5 +726,18 @@
     "kickoff": "2026-06-28T02:00:00Z",
     "asof": "2026-06-28T04:44:14.549013Z",
     "source": "polymarket"
+  },
+  "canada__south africa": {
+    "a": "South Africa",
+    "b": "Canada",
+    "pa": 0.1777,
+    "pd": 0.2893,
+    "pb": 0.533,
+    "raw_pa": 0.175,
+    "raw_pd": 0.285,
+    "raw_pb": 0.525,
+    "kickoff": "2026-06-28T19:00:00Z",
+    "asof": "2026-06-28T22:09:34.275542Z",
+    "source": "polymarket"
   }
 }
