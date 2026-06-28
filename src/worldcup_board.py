@@ -440,28 +440,39 @@ def _upcoming_html(path=UPCOMING_PATH):
             except (ValueError, TypeError):
                 return iso
     items = []
-    for m in rows:
+    today_iso = dt.date.today().isoformat()
+    # Partition rows so today's matches surface first under a "Today" sub-header, then the rest
+    # sorted by gap (as upstream). On knockout days when the headline match is buried by gap-sort
+    # this is the difference between "buried at #4" and "called out at the top".
+    today_rows = [m for m in rows if m.get("date") == today_iso]
+    other_rows = [m for m in rows if m.get("date") != today_iso]
+
+    def _build_li(m):
         a, b = m["a"], m["b"]
-        # The model and market each pick a side per outcome; the "gap" is on a specific outcome.
-        # Show that outcome clearly so the disagreement is a single legible number.
         which = m["which"]
         if which == "a_win":
-            label, model_p, mkt_p, side = f"{WM.code(a)} win", m["pa_m"], m["pa_x"], a
+            label, model_p, mkt_p = f"{WM.code(a)} win", m["pa_m"], m["pa_x"]
         elif which == "b_win":
-            label, model_p, mkt_p, side = f"{WM.code(b)} win", m["pb_m"], m["pb_x"], b
+            label, model_p, mkt_p = f"{WM.code(b)} win", m["pb_m"], m["pb_x"]
         else:
-            label, model_p, mkt_p, side = "draw", m["pd_m"], m["pd_x"], None
-        # Who's higher? "market more bullish on X" reads better than the raw signed number.
+            label, model_p, mkt_p = "draw", m["pd_m"], m["pd_x"]
         higher = "market" if mkt_p > model_p else "model"
-        lean = ("market is more bullish" if higher == "market"
-                else "model is more bullish")
-        items.append(
+        lean = "market is more bullish" if higher == "market" else "model is more bullish"
+        today_badge = (' <span class=sub style="background:var(--world);color:#fff;'
+                       'padding:1px 6px;border-radius:3px;font-weight:700;font-size:10px;'
+                       'letter-spacing:.5px">TODAY</span>'
+                       if m.get("date") == today_iso else "")
+        return (
             f'<li>{WM.flag_img(a)}<b>{WM.code(a)}</b> vs '
-            f'{WM.flag_img(b)}<b>{WM.code(b)}</b> '
+            f'{WM.flag_img(b)}<b>{WM.code(b)}</b>'
+            f'{today_badge} '
             f'<span class=sub>· {_pretty_date(m["date"])}</span> · '
             f'<b>{m["gap"]*100:.0f}pp gap</b> on {label} '
             f'<span class=sub>(market <b>{mkt_p*100:.0f}%</b> · model <b>{model_p*100:.0f}%</b> — '
             f'{lean})</span></li>')
+
+    for m in today_rows + other_rows:
+        items.append(_build_li(m))
     return (
         '<div><h3>Watch next: where model &amp; market most disagree '
         '<span class=sub>(next few days)</span></h3><ul class=evlist>'
@@ -661,12 +672,19 @@ def _fixtures(groups):
                 f'{WM.flag_img(teams[j])}</div>' for i, j in pairs)
             mds.append(f'<div class=fxmd><span class=fxmdl>MD{mi}</span>{fx}</div>')
         cards.append(f'<div class=fxcard><div class=gh>Group {g}</div>{"".join(mds)}</div>')
+    # Once groups have resolved, the trailing "knockout fixtures appear once groups resolve"
+    # disclaimer reads as stale — the R32 fixtures are already known and surfaced in the live
+    # Watch-next panel above. Phase-aware copy keeps the page honest.
+    knockout_note = (
+        ' Knockout fixtures are now live in the <b>Watch next</b> panel near the top of the page.'
+        if _all_groups_complete() else
+        ' Knockout fixtures depend on results, so they appear once the groups resolve.')
     return (
         f'<h2 id=fixtures>Group fixtures <span class=sub>— who plays whom, from the draw</span></h2>'
         f'<p class=note>Every group\'s matchups by matchday, straight from the verified 2026 draw. '
         f'Exact <b>kickoff times &amp; venues</b> live on '
-        f'<a href="{FIFA_SCHEDULE_URL}" target=_blank rel="noopener noreferrer">FIFA ↗</a>; knockout '
-        f'fixtures depend on results, so they appear once the groups resolve.</p>'
+        f'<a href="{FIFA_SCHEDULE_URL}" target=_blank rel="noopener noreferrer">FIFA ↗</a>.'
+        f'{knockout_note}</p>'
         f'<div class=fxgrid>{"".join(cards)}</div>')
 
 
@@ -878,6 +896,21 @@ def _outcome_map(fundamental, positions, groups, n_sims=20000, paths=None):
             elif gb > ga: real_table[b]["W"] += 1; real_table[a]["L"] += 1; real_table[b]["Pts"] += 3
             else:         real_table[a]["D"] += 1; real_table[b]["D"] += 1
             if ga == gb:  real_table[a]["Pts"] += 1; real_table[b]["Pts"] += 1
+    # After groups are done, the 3rd-place styling should distinguish best-thirds-who-actually-
+    # advanced (gold dot, class "m") from 3rd-placers who got knocked out (class "o"). Without
+    # this, four eliminated thirds (URU, IRN, SCO, KOR) read as "still contending" when they're
+    # done. Compute the qualifying-thirds set from the same standings used to rank teams below.
+    qualifying_3rd_groups = set()
+    if groups_done:
+        thirds = []
+        for g, teams in groups.items():
+            standing = sorted(teams, key=lambda t: (-real_table[t]["Pts"],
+                                                     -(real_table[t]["GF"] - real_table[t]["GA"]),
+                                                     -real_table[t]["GF"]))
+            thirds.append((g, standing[2], real_table[standing[2]]))
+        thirds.sort(key=lambda x: (-x[2]["Pts"], -(x[2]["GF"]-x[2]["GA"]), -x[2]["GF"]))
+        qualifying_3rd_groups = set(g for g, _, _ in thirds[:8])
+
     gcards = []
     ranked_by_group = {}
     for g, teams in groups.items():
@@ -889,7 +922,9 @@ def _outcome_map(fundamental, positions, groups, n_sims=20000, paths=None):
             ranked_by_group[g] = ranked
             trs = []
             for i, t in enumerate(ranked):
-                cls = "q" if i < 2 else ("m" if i == 2 else "o")
+                # i==2 (3rd place): only "m" if this group's third actually qualified.
+                cls = "q" if i < 2 else (
+                    "m" if i == 2 and g in qualifying_3rd_groups else "o")
                 s = real_table[t]
                 gd = s["GF"] - s["GA"]
                 trs.append(f'<tr class="{cls}"><td class=gp>{i+1}</td>'
@@ -972,13 +1007,17 @@ def _outcome_map(fundamental, positions, groups, n_sims=20000, paths=None):
         f'<h2 id=outcome>Outcome map '
         f'<span class=sub>— the <span class=eloc>informed</span> model\'s projection</span></h2>'
         f'<p class=note>What the informed Elo model expects, from <b>{n_sims//1000}k simulations</b> of the '
-        f'verified bracket — these are the <b>model\'s</b> probabilities, not the market\'s. A 20k-run '
+        f'verified bracket'
+        + (', <b>with all 72 group results held fixed</b> and the model re-forecast from there'
+           if _all_groups_complete() else '')
+        + f' — these are the <b>model\'s</b> probabilities, not the market\'s. A 20k-run '
         f'simulation is a <b>distribution</b>, not a single prediction, so we lead with the spread of '
         f'outcomes and keep the single most-likely bracket for last.</p>'
         f'{dist}'
         + (f'<h3>Final group stage <span class=sub>(actual standings)</span></h3>'
-           f'<p class=note><span class=qd></span> top-2 qualify, <span class=md></span> 3rd '
-           f'may sneak through as a best-third; <span class=sub>columns: W-D-L · GD · Pts.</span></p>'
+           f'<p class=note><span class=qd></span> top-2 advanced, <span class=md></span> 3rd '
+           f'advanced as a best-third, <span class=od></span> eliminated. '
+           f'<span class=sub>columns: W-D-L · GD · Pts.</span></p>'
            if _all_groups_complete() else
            f'<h3>Projected group stage <span class=sub>(advance %)</span></h3>'
            f'<p class=note><span class=qd></span> top-2 qualify, <span class=md></span> 3rd '
@@ -1339,10 +1378,16 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
     longs = [t for t in book if t["side"] == "LONG"]
     shorts = [t for t in book if t["side"] == "SHORT"]
     cards = []
+    picked_keys = set()                                          # dedupe the 3rd pick against #1 #2
+
+    def _picked(tk):
+        picked_keys.add((tk.get("team"), tk.get("level")))
+        return tk
+
     if longs:
-        cards.append(_edge_card(max(longs, key=lambda t: t["edge"])))
+        cards.append(_edge_card(_picked(max(longs, key=lambda t: t["edge"]))))
     if shorts:
-        cards.append(_edge_card(min(shorts, key=lambda t: t["edge"])))
+        cards.append(_edge_card(_picked(min(shorts, key=lambda t: t["edge"]))))
     if nested:                                                   # a riskless inconsistency, if any
         t, sh, dp, sp, dpp, _g = nested[0]
         cards.append(
@@ -1350,8 +1395,10 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
             f'<div class="ct">{_disp(t)}</div><div class="cr">nested inconsistency</div>'
             f'<div class="cm">priced higher to <b>{dpp}</b>&nbsp;({dp}) than to <b>{sp}</b>&nbsp;({sh})</div>'
             f'<div class="ce neg">logically impossible — one of these prices is wrong</div></div>')
-    elif len(book) > 2:                                          # else a third disagreement
-        cards.append(_edge_card(sorted(book, key=lambda t: -abs(t["edge"]))[2]))
+    elif len(book) > 2:                                          # else a third disagreement, deduped
+        remaining = [t for t in book if (t.get("team"), t.get("level")) not in picked_keys]
+        if remaining:
+            cards.append(_edge_card(max(remaining, key=lambda t: abs(t["edge"]))))
     cardstrip = f'<div class="cards">{"".join(cards)}</div>' if cards else ""
 
     # ---- wc-live matchday timeline (settle -> close -> redeploy), if the live book has run ----
@@ -1389,13 +1436,46 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
         f'<section id=fundamental><h2>The <span style="color:var(--elo)">informed</span> model '
         f'— Elo ratings vs the market <span class=sub>an independent second opinion</span></h2>'
         f'{fund_intro}</section>' if fundamental else "")
-    elo_tabs = ('<button class="tab pulse" id=tb-eloc onclick="tab(\'eloc\')">🧮 Elo · Buy &amp; Hold '
-                '<span class=sub>informed, held</span></button>'
-                '<button class="tab pulse" id=tb-elol onclick="tab(\'elol\')">🧮 Elo · Active '
-                '<span class=sub>informed, daily</span></button>') if fundamental else ""
-    elo_panes = (f'<div id=pane-eloc class=pane hidden>{eloc_money}<div class=scroll>{eloc_book}</div></div>'
-                 f'<div id=pane-elol class=pane hidden>{elol_money}<div class=scroll>{elol_book}</div></div>'
-                 ) if fundamental else ""
+    # Hide the Active Trading tabs (ZK + Elo) when their ledger is byte-identical to Buy & Hold —
+    # i.e. the daily rebalancer never triggered. Two tabs showing the same numbers is just noise;
+    # if Active ever fires, the file diverges and the tab comes back automatically.
+    def _ledgers_identical(a, b):
+        try:
+            return open(a, "rb").read() == open(b, "rb").read()
+        except OSError:
+            return False
+    zk_active_silent = _ledgers_identical(core_path, live_path)
+    elo_active_silent = _ledgers_identical(elo_core_path, elo_live_path) if fundamental else True
+    elo_tabs = ""
+    if fundamental:
+        elo_tabs = ('<button class="tab pulse" id=tb-eloc onclick="tab(\'eloc\')">🧮 Elo · Buy &amp; Hold '
+                    '<span class=sub>informed, held</span></button>')
+        if not elo_active_silent:
+            elo_tabs += ('<button class="tab pulse" id=tb-elol onclick="tab(\'elol\')">🧮 Elo · Active '
+                         '<span class=sub>informed, daily</span></button>')
+    elo_panes = ""
+    if fundamental:
+        elo_panes = f'<div id=pane-eloc class=pane hidden>{eloc_money}<div class=scroll>{eloc_book}</div></div>'
+        if not elo_active_silent:
+            elo_panes += f'<div id=pane-elol class=pane hidden>{elol_money}<div class=scroll>{elol_book}</div></div>'
+
+    # ZK Active tab + pane: shown only when the daily rebalancer has actually fired (the ledger
+    # has diverged from Buy & Hold). When inert, we suppress both AND add a small note under
+    # the Buy & Hold pane explaining why there's no Active tab — keeps the design promise honest.
+    zk_active_tab = ("" if zk_active_silent else
+                     '<button class="tab" id=tb-live onclick="tab(\'live\')">🔄 Active Trading '
+                     '<span class=sub>zero-knowledge, daily</span></button>')
+    zk_active_pane = ("" if zk_active_silent else
+                      f'<div id=pane-live class=pane hidden>{live_money}'
+                      f'<div class=scroll>{live_book}</div>{timeline}</div>')
+    active_inert_note = ("" if not zk_active_silent else
+                         '<p class="note sub" style="margin-top:8px;padding:8px 12px;'
+                         'background:var(--panel);border-left:3px solid var(--ink3);border-radius:6px;">'
+                         '<b>Active Trading is currently silent.</b> The daily rebalancer would have '
+                         'cut a leg the model turned against or rotated into a clearly bigger edge — '
+                         'but no edge has cleared the half-spread cost buffer, so it has held the '
+                         'same positions as Buy &amp; Hold. (The tab reappears here automatically '
+                         'the first time it fires.)</p>')
     bracket_score_html = _bracket_score_html()               # the knockout bracket scorecard
     bma_html = _bma_html()                                   # the ensemble (BMA) panel
     evolution_html = _evolution_html(fundamental) if fundamental else ""   # 'as it unfolds' (dormant pre-tournament)
@@ -1698,8 +1778,8 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
  .gt td.gp{{width:13px;color:var(--ink4);text-align:center}} .gt td:last-child{{text-align:right;color:var(--ink3)}}
  .gt tr.q td.gp{{color:var(--world);font-weight:800}} .gt tr.m td.gp{{color:#d9a441;font-weight:700}}
  .gt tr.o{{opacity:.5}} img.flag{{margin-right:4px}}
- .qd,.md{{display:inline-block;width:8px;height:8px;border-radius:2px;vertical-align:middle;margin:0 2px}}
- .qd{{background:var(--world)}} .md{{background:#d9a441}}
+ .qd,.md,.od{{display:inline-block;width:8px;height:8px;border-radius:2px;vertical-align:middle;margin:0 2px}}
+ .qd{{background:var(--world)}} .md{{background:#d9a441}} .od{{background:var(--line3)}}
  .bwrap{{overflow-x:auto;-webkit-overflow-scrolling:touch;
    /* break the bracket out of the centred column so it fits without scrolling on wide screens,
       capped so it doesn't sprawl on huge monitors and never wider than the viewport */
@@ -1881,11 +1961,11 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
      <span class=hint>👇 each book below shows its <b>own</b> capital at risk &amp; max ↑/↓</span></div>
    <div class=tabs role=tablist>
      <button class="tab on" id=tb-core onclick="tab('core')">🤝 Buy &amp; Hold <span class=sub>zero-knowledge, held</span></button>
-     <button class="tab" id=tb-live onclick="tab('live')">🔄 Active Trading <span class=sub>zero-knowledge, daily</span></button>
+     {zk_active_tab}
      {elo_tabs}
    </div>
-   <div id=pane-core class=pane>{core_money}<div class=scroll>{core_book}</div></div>
-   <div id=pane-live class=pane hidden>{live_money}<div class=scroll>{live_book}</div>{timeline}</div>
+   <div id=pane-core class=pane>{core_money}<div class=scroll>{core_book}</div>{active_inert_note}</div>
+   {zk_active_pane}
    {elo_panes}
  </section>
  <div class=about><img class=amark src="{mark}" alt="">

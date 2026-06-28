@@ -275,7 +275,11 @@ def write_bracket_scorecard():
 
 
 def resolve(level, outcomes):
-    """Settle forecasts at `level` against {team: 0/1}; rescore; settle the frozen books too."""
+    """Settle forecasts at `level` against {team: 0/1}; rescore; settle the frozen books too.
+
+    Books settled: ZK Buy & Hold (CORE) + ZK Active (LIVE) + Elo Buy & Hold (ELO_CORE) +
+    Elo Active (ELO_LIVE). Each open position whose team is in `outcomes` flips to
+    status="resolved" with realized = shares * (outcome - entry)."""
     preds = _load(PRED)
     n = 0
     for p in preds:
@@ -283,7 +287,7 @@ def resolve(level, outcomes):
             p["outcome"] = int(outcomes[p["team"]])
             n += 1
     _write(preds, PRED)
-    for path in (CORE, LIVE):
+    for path in (CORE, LIVE, ELO_CORE, ELO_LIVE):
         rows = _load(path)
         for r in rows:
             if r.get("status") == "open" and r["level"] == level and r["team"] in outcomes:

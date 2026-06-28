@@ -1,9 +1,9 @@
 {
-  "as_of": "2026-06-10",
+  "as_of": "2026-06-28",
   "points": {
-    "market": 0,
-    "zero_knowledge": 0,
-    "elo": 0
+    "market": 25,
+    "zero_knowledge": 25,
+    "elo": 25
   },
   "levels": [
     {
@@ -11,7 +11,7 @@
       "label": "Last 32",
       "slots": 32,
       "weight": 1,
-      "resolved": false,
+      "resolved": true,
       "picks": {
         "market": [
           "spain",
@@ -35,7 +35,11 @@
           "ecuador"
         ]
       },
-      "hits": {},
+      "hits": {
+        "market": 25,
+        "zero_knowledge": 25,
+        "elo": 25
+      },
       "agree": 30,
       "contested": {
         "model": [
@@ -43,8 +47,8 @@
           "australia"
         ],
         "market": [
-          "algeria",
-          "bosniaandherzegovina"
+          "bosniaandherzegovina",
+          "algeria"
         ]
       }
     },
@@ -210,5 +214,5 @@
     "zero_knowledge": "spain",
     "elo": "spain"
   },
-  "n_resolved": 0
+  "n_resolved": 1
 }

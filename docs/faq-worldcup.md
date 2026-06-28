@@ -109,8 +109,8 @@ Yes. As results come in, the model **re-forecasts**: each played match updates b
 re-simulated, and only the matches still to come are rolled forward. Crucially, the **pre-tournament
 forecast stays frozen** in an append-only ledger — that locked-in prediction is what gets scored, so
 the model can't quietly rewrite history to look good. The live board shows the updated view, and the
-*as-it-unfolds* strip near the top wakes up once the first games are played, highlighting what moved
-and which upsets landed.
+*as-it-unfolds* strip near the top woke up when group play began on Jun 11 and now tracks the biggest
+forecast moves, which upsets landed, and where the model and market still disagree on upcoming matches.
 
 ## Can I trust the numbers?
 

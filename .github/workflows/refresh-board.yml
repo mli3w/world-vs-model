@@ -54,6 +54,14 @@ jobs:
         continue-on-error: true                # only updates the cache; falls back to Elo if it fails
         run: python src/snapshot_polymarket_prices.py
 
+      - name: Auto-resolve completed rungs (advance / QF / SF / F / win) against results
+        # Settles the predictions ledger + the 4 paper books + scorecard.json + bracket_score.json
+        # + bma.json. Idempotent: rungs already resolved are skipped. Without this, the credibility
+        # strip, the bracket score race, and the BMA weights all stay at their pre-tournament zeros
+        # even after the round has fully resolved.
+        continue-on-error: true
+        run: python src/auto_resolve.py
+
       - name: Refresh the upcoming-matches model↔market disagreement preview
         continue-on-error: true                # if Polymarket/ESPN blips, panel goes empty (graceful)
         # window=5d during knockouts (round-of-32 spans ~6 days, gaps between rounds widen later);
