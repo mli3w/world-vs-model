@@ -237,18 +237,23 @@ def render(out_path=OUT):
             r = int(0x4f + (0x8b - 0x4f) * f); g = int(0x7c + (0x6d - 0x7c) * f); b = int(0xe8 + (0xff - 0xe8) * f)
         ax.add_patch(Rectangle((i, 99), 1, 1, facecolor=f"#{r:02x}{g:02x}{b:02x}", edgecolor="none"))
 
-    # ---- header: emblem + wordmark + subtitle
-    _draw_emblem(fig, ax, x=0.10, y=0.91, size=0.22)
-    # Three independent text calls for the wordmark so the "vs" can take the brand-violet accent.
-    # x positions hand-tuned at fontsize=30 — small gaps between tokens for readable spacing.
-    ax.text(19.0, 94.5, "World", ha="left", va="center", color=INK,
-            fontsize=30, weight="bold", family="sans-serif")
-    ax.text(35.0, 94.5, "vs", ha="left", va="center", color=VIOL,
-            fontsize=30, weight="bold", family="sans-serif", style="italic")
-    ax.text(42.5, 94.5, "Model", ha="left", va="center", color=INK,
-            fontsize=30, weight="bold", family="sans-serif")
-    ax.text(19, 89.5, "2026 FIFA World Cup  ·  zero-knowledge book  ·  group stage",
-            ha="left", va="center", color=INK2, fontsize=12, style="italic")
+    # ---- header: emblem + wordmark + subtitle, centred as one unit
+    # Layout: [emblem] [World] [vs] [Model] all on the same horizontal centreline. Emblem is the
+    # smaller, lighter mark; the wordmark carries the brand. Centre the whole assembly on x=50.
+    # "vs" anchors the centre of the image at x=50 (horizontal axis of symmetry through the
+    # whole layout). "World" and "Model" flank it via ha="right"/"left" anchored just outside
+    # the "vs" box. Emblem sits to the LEFT of "World" on the same horizontal centreline as
+    # the wordmark — same y=94.5 baseline, so it's visually IN the title row, not blocking
+    # the subtitle below.
+    _draw_emblem(fig, ax, x=0.275, y=0.945, size=0.13)
+    ax.text(46.5, 94.5, "World", ha="right", va="center", color=INK,
+            fontsize=28, weight="bold", family="sans-serif")
+    ax.text(50.0, 94.5, "vs", ha="center", va="center", color=VIOL,
+            fontsize=28, weight="bold", family="sans-serif", style="italic")
+    ax.text(53.5, 94.5, "Model", ha="left", va="center", color=INK,
+            fontsize=28, weight="bold", family="sans-serif")
+    ax.text(50, 87.5, "2026 FIFA World Cup  ·  zero-knowledge book  ·  group stage",
+            ha="center", va="center", color=INK2, fontsize=12, style="italic")
 
     # ---- hero hit-rate
     hit_rate = book["n_resolved"] and (
