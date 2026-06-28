@@ -674,5 +674,57 @@
     "kickoff": "2026-06-27T03:00:00Z",
     "asof": "2026-06-27T08:47:55.699856Z",
     "source": "polymarket"
+  },
+  "croatia__ghana": {
+    "a": "Croatia",
+    "b": "Ghana",
+    "pa": 0.5423,
+    "pd": 0.2935,
+    "pb": 0.1642,
+    "raw_pa": 0.545,
+    "raw_pd": 0.295,
+    "raw_pb": 0.165,
+    "kickoff": "2026-06-27T21:00:00Z",
+    "asof": "2026-06-28T04:44:12.053601Z",
+    "source": "polymarket"
+  },
+  "england__panama": {
+    "a": "Panama",
+    "b": "England",
+    "pa": 0.0448,
+    "pd": 0.1045,
+    "pb": 0.8507,
+    "raw_pa": 0.045,
+    "raw_pd": 0.105,
+    "raw_pb": 0.855,
+    "kickoff": "2026-06-27T21:00:00Z",
+    "asof": "2026-06-28T04:44:12.584724Z",
+    "source": "polymarket"
+  },
+  "algeria__austria": {
+    "a": "Algeria",
+    "b": "Austria",
+    "pa": 0.2736,
+    "pd": 0.4627,
+    "pb": 0.2637,
+    "raw_pa": 0.275,
+    "raw_pd": 0.465,
+    "raw_pb": 0.265,
+    "kickoff": "2026-06-28T02:00:00Z",
+    "asof": "2026-06-28T04:44:13.939311Z",
+    "source": "polymarket"
+  },
+  "argentina__jordan": {
+    "a": "Jordan",
+    "b": "Argentina",
+    "pa": 0.0433,
+    "pd": 0.0947,
+    "pb": 0.862,
+    "raw_pa": 0.0435,
+    "raw_pd": 0.095,
+    "raw_pb": 0.865,
+    "kickoff": "2026-06-28T02:00:00Z",
+    "asof": "2026-06-28T04:44:14.549013Z",
+    "source": "polymarket"
   }
 }

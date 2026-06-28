@@ -460,5 +460,47 @@
     "ga": 1,
     "gb": 5,
     "stage": "group"
+  },
+  {
+    "a": "Croatia",
+    "b": "Ghana",
+    "ga": 2,
+    "gb": 1,
+    "stage": "group"
+  },
+  {
+    "a": "Panama",
+    "b": "England",
+    "ga": 0,
+    "gb": 2,
+    "stage": "group"
+  },
+  {
+    "a": "Colombia",
+    "b": "Portugal",
+    "ga": 0,
+    "gb": 0,
+    "stage": "group"
+  },
+  {
+    "a": "DR Congo",
+    "b": "Uzbekistan",
+    "ga": 3,
+    "gb": 1,
+    "stage": "group"
+  },
+  {
+    "a": "Algeria",
+    "b": "Austria",
+    "ga": 3,
+    "gb": 3,
+    "stage": "group"
+  },
+  {
+    "a": "Jordan",
+    "b": "Argentina",
+    "ga": 1,
+    "gb": 3,
+    "stage": "group"
   }
 ]
