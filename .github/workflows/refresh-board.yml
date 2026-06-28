@@ -56,7 +56,9 @@ jobs:
 
       - name: Refresh the upcoming-matches model↔market disagreement preview
         continue-on-error: true                # if Polymarket/ESPN blips, panel goes empty (graceful)
-        run: python src/wc_upcoming.py --window 3 --top 6 --min-gap 0.05
+        # window=5d during knockouts (round-of-32 spans ~6 days, gaps between rounds widen later);
+        # group-stage matchdays were tighter (every 2-3d), so 3d worked then. 5d is the safer floor now.
+        run: python src/wc_upcoming.py --window 5 --top 6 --min-gap 0.05
 
       - name: Commit & push new results (if any)
         continue-on-error: true                # if push races another build, retry next cron

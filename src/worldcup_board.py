@@ -239,9 +239,10 @@ def _live_timeline(path):
 
 def _scorecard_tiles(path=SCORECARD, results_path=RESULTS_PATH, today=None):
     """Track-record tiles for the credibility strip. Reads the resolved-out-of-sample scorecard
-    AND the played-match ledger; honestly distinguishes three states:
+    AND the played-match ledger; honestly distinguishes four states:
        • PRE-KICKOFF  — before Jun 11, nothing yet
-       • GROUP STAGE  — tournament running, advance level still resolving
+       • GROUP STAGE  — group games in progress, advance level still resolving
+       • KNOCKOUT     — all 72 group games played, R32 about to begin / underway
        • LIVE         — at least one round has fully resolved → hit rate / Brier / lift
     """
     try:
@@ -265,15 +266,20 @@ def _scorecard_tiles(path=SCORECARD, results_path=RESULTS_PATH, today=None):
                 ("resolved so far", "0", "skill is scored, not claimed"),
                 ("status", "PRE-KICKOFF", "scorecard arms Jun 11")]
 
-    # Tournament has started but no round has fully resolved yet (group stage in progress)
+    # Tournament underway — distinguish between group stage and knockout by group-game count.
+    # 72 group games = all 12 groups × 6 matches. Once that's complete, R32 is imminent / underway.
     n_played = 0
     try:
         with open(results_path) as f:
             n_played = len((_json.load(f) or []))
     except Exception:
         pass
+    if n_played >= 72:
+        return [("claims registered", str(n_tot), "timestamped, falsifiable"),
+                ("group games played", "72/72", "group stage complete"),
+                ("status", "KNOCKOUT", "R32 scoring underway")]
     return [("claims registered", str(n_tot), "timestamped, falsifiable"),
-            ("matches played", str(n_played), "feed live results → re-forecast"),
+            ("matches played", f"{n_played}/72", "feed live results → re-forecast"),
             ("status", "GROUP STAGE", "advance scored after Jun 27")]
 
 
@@ -570,12 +576,36 @@ def _evolution_html(fundamental, pred_path=PREDICTIONS, results_path=RESULTS_PAT
             'the headline; this is the living companion.</p>')
 
 
+_R32_START = dt.date(2026, 6, 28)                              # FIFA-published R32 kickoff
+
+
+def _all_groups_complete(results_path=RESULTS_PATH):
+    """True iff all 72 group-stage matches have been recorded — the trigger for switching
+    the board's framing from 'group stage running' to 'knockouts begin'."""
+    try:
+        import json as _json
+        with open(results_path) as f:
+            results = _json.load(f) or []
+        groups = [r for r in results if r.get("stage", "group") == "group"]
+        return len(groups) >= 72
+    except (FileNotFoundError, ValueError):
+        return False
+
+
 def _kickoff_note(today=None):
-    """Countdown / live-state note so the page never looks dead pre-tournament."""
-    days = (KICKOFF - (today or dt.date.today())).days
-    if days > 0:
-        return f'Kicks off in <b>{days}</b> day{"s" if days != 1 else ""} · Jun 11, 2026'
-    return '<b>Tournament underway</b> · markets resolving' if days < 0 else '<b>Kicks off today</b>'
+    """Countdown / live-state note so the page never looks dead at any phase."""
+    today = today or dt.date.today()
+    days_to_kick = (KICKOFF - today).days
+    if days_to_kick > 0:
+        return f'Kicks off in <b>{days_to_kick}</b> day{"s" if days_to_kick != 1 else ""} · Jun 11, 2026'
+    # Tournament has started — distinguish group stage vs knockout phase.
+    if _all_groups_complete():
+        days_to_r32 = (_R32_START - today).days
+        if days_to_r32 > 0:
+            return f'<b>Group stage complete</b> · knockouts begin in {days_to_r32} day' \
+                   f'{"s" if days_to_r32 != 1 else ""}'
+        return '<b>Knockouts underway</b> · R32 markets resolving'
+    return '<b>Tournament underway</b> · markets resolving' if days_to_kick < 0 else '<b>Kicks off today</b>'
 
 
 # the fan/punter calendar — the official 2026 start date of each stage (group stage Jun 11–27,
@@ -588,10 +618,19 @@ KEY_DATES = [("Jun 11", "Group stage", "tournament opens"),
 
 
 def _keydates(today=None):
-    """A compact tournament timeline a fan/punter can scan: the key dates + a kickoff countdown."""
-    days = (KICKOFF - (today or dt.date.today())).days
-    badge = (f'<span class=kd-cd>{days} days to kickoff</span>' if days > 0
-             else '<span class=kd-cd>underway</span>' if days < 0 else '<span class=kd-cd>today!</span>')
+    """A compact tournament timeline a fan/punter can scan: the key dates + a phase-aware badge."""
+    today = today or dt.date.today()
+    days = (KICKOFF - today).days
+    if days > 0:
+        badge = f'<span class=kd-cd>{days} days to kickoff</span>'
+    elif _all_groups_complete():
+        days_to_r32 = (_R32_START - today).days
+        badge = (f'<span class=kd-cd>knockouts in {days_to_r32}d</span>' if days_to_r32 > 0
+                 else '<span class=kd-cd>knockouts on</span>')
+    elif days < 0:
+        badge = '<span class=kd-cd>group stage</span>'
+    else:
+        badge = '<span class=kd-cd>today!</span>'
     pills = "".join(f'<div class=kd><span class=kdd>{d}</span>'
                     f'<span class=kdt>{t}</span><span class=kds>{s}</span></div>'
                     for d, t, s in KEY_DATES)
@@ -815,19 +854,62 @@ def _outcome_map(fundamental, positions, groups, n_sims=20000, paths=None):
     Champion). Probabilities are the MODEL's, not the market's."""
     nz = WM.WL._norm
     adv = fundamental.get("advance", {})
+    # When group stage is complete, render ACTUAL final standings (W-D-L + Pts) instead of the
+    # model's projected finishing order. The bracket below still uses model strength for who
+    # advances each knockout round — only this section flips from projection to result.
+    actual_results = load_results() or []
+    groups_done = _all_groups_complete()
+    real_table = None
+    if groups_done:
+        from collections import defaultdict as _dd
+        real_table = _dd(lambda: {"Pts": 0, "GF": 0, "GA": 0, "P": 0, "W": 0, "D": 0, "L": 0})
+        team_to_group = {t: g for g, ts in groups.items() for t in ts}
+        for r in actual_results:
+            if r.get("stage", "group") != "group":
+                continue
+            a, b, ga, gb = r["a"], r["b"], r["ga"], r["gb"]
+            if a not in team_to_group or b not in team_to_group:
+                continue
+            for t, gf, ga_ in ((a, ga, gb), (b, gb, ga)):
+                real_table[t]["P"] += 1
+                real_table[t]["GF"] += gf
+                real_table[t]["GA"] += ga_
+            if ga > gb:   real_table[a]["W"] += 1; real_table[b]["L"] += 1; real_table[a]["Pts"] += 3
+            elif gb > ga: real_table[b]["W"] += 1; real_table[a]["L"] += 1; real_table[b]["Pts"] += 3
+            else:         real_table[a]["D"] += 1; real_table[b]["D"] += 1
+            if ga == gb:  real_table[a]["Pts"] += 1; real_table[b]["Pts"] += 1
     gcards = []
     ranked_by_group = {}
     for g, teams in groups.items():
-        ranked = sorted(teams, key=lambda t: sum(i * p for i, p in enumerate(
-            positions.get(nz(t), [0, 0, 0, 1]))))          # by expected finishing position
-        ranked_by_group[g] = ranked
-        trs = []
-        for i, t in enumerate(ranked):
-            cls = "q" if i < 2 else ("m" if i == 2 else "o")
-            trs.append(f'<tr class="{cls}"><td class=gp>{i+1}</td>'
-                       f'<td class="team">{_disp(t)}</td><td>{_pctf(adv.get(nz(t), 0), 0)}</td></tr>')
-        gcards.append(f'<div class=gcard><div class=gh>Group {g}</div>'
-                      f'<table class=gt><tbody>{"".join(trs)}</tbody></table></div>')
+        if groups_done:
+            # ACTUAL standings — sort by Pts, GD, GF
+            ranked = sorted(teams, key=lambda t: (-real_table[t]["Pts"],
+                                                    -(real_table[t]["GF"] - real_table[t]["GA"]),
+                                                    -real_table[t]["GF"]))
+            ranked_by_group[g] = ranked
+            trs = []
+            for i, t in enumerate(ranked):
+                cls = "q" if i < 2 else ("m" if i == 2 else "o")
+                s = real_table[t]
+                gd = s["GF"] - s["GA"]
+                trs.append(f'<tr class="{cls}"><td class=gp>{i+1}</td>'
+                           f'<td class="team">{_disp(t)}</td>'
+                           f'<td class=sub>{s["W"]}-{s["D"]}-{s["L"]}</td>'
+                           f'<td class=sub>{gd:+d}</td>'
+                           f'<td><b>{s["Pts"]}</b></td></tr>')
+            gcards.append(f'<div class=gcard><div class=gh>Group {g}</div>'
+                          f'<table class=gt><tbody>{"".join(trs)}</tbody></table></div>')
+        else:
+            ranked = sorted(teams, key=lambda t: sum(i * p for i, p in enumerate(
+                positions.get(nz(t), [0, 0, 0, 1]))))      # projection: by expected finishing position
+            ranked_by_group[g] = ranked
+            trs = []
+            for i, t in enumerate(ranked):
+                cls = "q" if i < 2 else ("m" if i == 2 else "o")
+                trs.append(f'<tr class="{cls}"><td class=gp>{i+1}</td>'
+                           f'<td class="team">{_disp(t)}</td><td>{_pctf(adv.get(nz(t), 0), 0)}</td></tr>')
+            gcards.append(f'<div class=gcard><div class=gh>Group {g}</div>'
+                          f'<table class=gt><tbody>{"".join(trs)}</tbody></table></div>')
 
     # ---- the knockout BRACKET: the REAL, OFFICIAL 2026 fixtures. The model's projected group
     #      standings are poured into FIFA's published slot table (src/wc_bracket.py: the 16 fixed
@@ -894,9 +976,13 @@ def _outcome_map(fundamental, positions, groups, n_sims=20000, paths=None):
         f'simulation is a <b>distribution</b>, not a single prediction, so we lead with the spread of '
         f'outcomes and keep the single most-likely bracket for last.</p>'
         f'{dist}'
-        f'<h3>Projected group stage <span class=sub>(advance %)</span></h3>'
-        f'<p class=note><span class=qd></span> top-2 qualify, <span class=md></span> 3rd may sneak through '
-        f'as a best-third; order is the model\'s expected finish.</p>'
+        + (f'<h3>Final group stage <span class=sub>(actual standings)</span></h3>'
+           f'<p class=note><span class=qd></span> top-2 qualify, <span class=md></span> 3rd '
+           f'may sneak through as a best-third; <span class=sub>columns: W-D-L · GD · Pts.</span></p>'
+           if _all_groups_complete() else
+           f'<h3>Projected group stage <span class=sub>(advance %)</span></h3>'
+           f'<p class=note><span class=qd></span> top-2 qualify, <span class=md></span> 3rd '
+           f'may sneak through as a best-third; order is the model\'s expected finish.</p>') +
         f'<div class=groups>{"".join(gcards)}</div>'
         f'<h3>The single most-likely bracket <span class=sub>— one path among many; node shading = % to '
         f'reach that round, real FIFA R32 slots, model placement</span></h3>{bracket}'
