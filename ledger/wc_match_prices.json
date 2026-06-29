@@ -739,5 +739,18 @@
     "kickoff": "2026-06-28T19:00:00Z",
     "asof": "2026-06-28T22:09:34.275542Z",
     "source": "polymarket"
+  },
+  "brazil__japan": {
+    "a": "Brazil",
+    "b": "Japan",
+    "pa": 0.5522,
+    "pd": 0.2637,
+    "pb": 0.1841,
+    "raw_pa": 0.555,
+    "raw_pd": 0.265,
+    "raw_pb": 0.185,
+    "kickoff": "2026-06-29T17:00:00Z",
+    "asof": "2026-06-29T20:09:50.409523Z",
+    "source": "polymarket"
   }
 }

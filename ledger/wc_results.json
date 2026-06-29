@@ -509,5 +509,12 @@
     "ga": 0,
     "gb": 1,
     "stage": "ko"
+  },
+  {
+    "a": "Brazil",
+    "b": "Japan",
+    "ga": 2,
+    "gb": 1,
+    "stage": "ko"
   }
 ]
