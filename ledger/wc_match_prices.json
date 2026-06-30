@@ -752,5 +752,18 @@
     "kickoff": "2026-06-29T17:00:00Z",
     "asof": "2026-06-29T20:09:50.409523Z",
     "source": "polymarket"
+  },
+  "ivory coast__norway": {
+    "a": "Ivory Coast",
+    "b": "Norway",
+    "pa": 0.2663,
+    "pd": 0.2864,
+    "pb": 0.4472,
+    "raw_pa": 0.265,
+    "raw_pd": 0.285,
+    "raw_pb": 0.445,
+    "kickoff": "2026-06-30T17:00:00Z",
+    "asof": "2026-06-30T20:09:52.826331Z",
+    "source": "polymarket"
   }
 }
