@@ -765,5 +765,31 @@
     "kickoff": "2026-06-30T17:00:00Z",
     "asof": "2026-06-30T20:09:52.826331Z",
     "source": "polymarket"
+  },
+  "france__sweden": {
+    "a": "France",
+    "b": "Sweden",
+    "pa": 0.7711,
+    "pd": 0.1542,
+    "pb": 0.0746,
+    "raw_pa": 0.775,
+    "raw_pd": 0.155,
+    "raw_pb": 0.075,
+    "kickoff": "2026-06-30T21:00:00Z",
+    "asof": "2026-07-01T04:47:26.146338Z",
+    "source": "polymarket"
+  },
+  "ecuador__mexico": {
+    "a": "Mexico",
+    "b": "Ecuador",
+    "pa": 0.4328,
+    "pd": 0.3333,
+    "pb": 0.2338,
+    "raw_pa": 0.435,
+    "raw_pd": 0.335,
+    "raw_pb": 0.235,
+    "kickoff": "2026-07-01T01:00:00Z",
+    "asof": "2026-07-01T04:47:27.035084Z",
+    "source": "polymarket"
   }
 }
