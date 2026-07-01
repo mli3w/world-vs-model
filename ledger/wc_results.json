@@ -537,5 +537,12 @@
     "ga": 2,
     "gb": 0,
     "stage": "ko"
+  },
+  {
+    "a": "England",
+    "b": "DR Congo",
+    "ga": 2,
+    "gb": 1,
+    "stage": "ko"
   }
 ]
