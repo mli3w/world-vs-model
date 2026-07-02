@@ -551,5 +551,12 @@
     "ga": 2,
     "gb": 0,
     "stage": "ko"
+  },
+  {
+    "a": "Spain",
+    "b": "Austria",
+    "ga": 3,
+    "gb": 0,
+    "stage": "ko"
   }
 ]

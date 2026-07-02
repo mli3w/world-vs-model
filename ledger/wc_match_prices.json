@@ -804,5 +804,18 @@
     "kickoff": "2026-07-02T00:00:00Z",
     "asof": "2026-07-02T04:14:34.691678Z",
     "source": "polymarket"
+  },
+  "austria__spain": {
+    "a": "Spain",
+    "b": "Austria",
+    "pa": 0.7572,
+    "pd": 0.169,
+    "pb": 0.0738,
+    "raw_pa": 0.7562,
+    "raw_pd": 0.1688,
+    "raw_pb": 0.0737,
+    "kickoff": "2026-07-02T19:00:00Z",
+    "asof": "2026-07-02T22:14:56.718430Z",
+    "source": "polymarket"
   }
 }
