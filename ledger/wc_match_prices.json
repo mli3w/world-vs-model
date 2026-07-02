@@ -791,5 +791,18 @@
     "kickoff": "2026-07-01T01:00:00Z",
     "asof": "2026-07-01T04:47:27.035084Z",
     "source": "polymarket"
+  },
+  "bosnia-herzegovina__usa": {
+    "a": "USA",
+    "b": "Bosnia-Herzegovina",
+    "pa": 0.7186,
+    "pd": 0.1859,
+    "pb": 0.0955,
+    "raw_pa": 0.715,
+    "raw_pd": 0.185,
+    "raw_pb": 0.095,
+    "kickoff": "2026-07-02T00:00:00Z",
+    "asof": "2026-07-02T04:14:34.691678Z",
+    "source": "polymarket"
   }
 }

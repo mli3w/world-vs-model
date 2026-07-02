@@ -544,5 +544,12 @@
     "ga": 2,
     "gb": 1,
     "stage": "ko"
+  },
+  {
+    "a": "USA",
+    "b": "Bosnia-Herzegovina",
+    "ga": 2,
+    "gb": 0,
+    "stage": "ko"
   }
 ]
