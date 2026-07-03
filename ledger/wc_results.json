@@ -565,5 +565,12 @@
     "ga": 2,
     "gb": 1,
     "stage": "ko"
+  },
+  {
+    "a": "Switzerland",
+    "b": "Algeria",
+    "ga": 2,
+    "gb": 0,
+    "stage": "ko"
   }
 ]

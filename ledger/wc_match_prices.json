@@ -817,5 +817,18 @@
     "kickoff": "2026-07-02T19:00:00Z",
     "asof": "2026-07-02T22:14:56.718430Z",
     "source": "polymarket"
+  },
+  "algeria__switzerland": {
+    "a": "Switzerland",
+    "b": "Algeria",
+    "pa": 0.4869,
+    "pd": 0.3026,
+    "pb": 0.2105,
+    "raw_pa": 0.4888,
+    "raw_pd": 0.3038,
+    "raw_pb": 0.2112,
+    "kickoff": "2026-07-03T03:00:00Z",
+    "asof": "2026-07-03T09:32:07.838220Z",
+    "source": "polymarket"
   }
 }
