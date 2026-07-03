@@ -558,5 +558,12 @@
     "ga": 3,
     "gb": 0,
     "stage": "ko"
+  },
+  {
+    "a": "Portugal",
+    "b": "Croatia",
+    "ga": 2,
+    "gb": 1,
+    "stage": "ko"
   }
 ]
