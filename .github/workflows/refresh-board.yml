@@ -108,7 +108,28 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deploy.outputs.page_url || steps.deploy-2.outputs.page_url || steps.deploy-3.outputs.page_url }}
     steps:
+      # deploy-pages intermittently fails with "Deployment failed, try again later." — a transient
+      # GitHub Pages *backend* error unrelated to our build (the same commit has deployed cleanly on
+      # other attempts). Retry twice with a short backoff so a blip self-heals instead of red-flagging
+      # the whole scheduled run. The final attempt is not continue-on-error: if the backend is genuinely
+      # down after three tries, the job should fail loudly.
       - id: deploy
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Back off before retrying the Pages deployment
+        if: steps.deploy.outcome == 'failure'
+        run: sleep 30
+      - id: deploy-2
+        if: steps.deploy.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Back off before the final Pages deployment retry
+        if: steps.deploy.outcome == 'failure' && steps.deploy-2.outcome == 'failure'
+        run: sleep 60
+      - id: deploy-3
+        if: steps.deploy.outcome == 'failure' && steps.deploy-2.outcome == 'failure'
         uses: actions/deploy-pages@v4
