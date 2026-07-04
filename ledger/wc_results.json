@@ -572,5 +572,12 @@
     "ga": 2,
     "gb": 0,
     "stage": "ko"
+  },
+  {
+    "a": "Colombia",
+    "b": "Ghana",
+    "ga": 1,
+    "gb": 0,
+    "stage": "ko"
   }
 ]

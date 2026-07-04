@@ -830,5 +830,18 @@
     "kickoff": "2026-07-03T03:00:00Z",
     "asof": "2026-07-03T09:32:07.838220Z",
     "source": "polymarket"
+  },
+  "colombia__ghana": {
+    "a": "Colombia",
+    "b": "Ghana",
+    "pa": 0.6749,
+    "pd": 0.2217,
+    "pb": 0.1034,
+    "raw_pa": 0.685,
+    "raw_pd": 0.225,
+    "raw_pb": 0.105,
+    "kickoff": "2026-07-04T01:30:00Z",
+    "asof": "2026-07-04T03:54:42.501441Z",
+    "source": "polymarket"
   }
 }
