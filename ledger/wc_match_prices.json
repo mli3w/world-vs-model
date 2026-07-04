@@ -843,5 +843,18 @@
     "kickoff": "2026-07-04T01:30:00Z",
     "asof": "2026-07-04T03:54:42.501441Z",
     "source": "polymarket"
+  },
+  "canada__morocco": {
+    "a": "Canada",
+    "b": "Morocco",
+    "pa": 0.1741,
+    "pd": 0.2836,
+    "pb": 0.5423,
+    "raw_pa": 0.175,
+    "raw_pd": 0.285,
+    "raw_pb": 0.545,
+    "kickoff": "2026-07-04T17:00:00Z",
+    "asof": "2026-07-04T19:26:14.409181Z",
+    "source": "polymarket"
   }
 }
