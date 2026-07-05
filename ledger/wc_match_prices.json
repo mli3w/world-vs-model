@@ -869,5 +869,18 @@
     "kickoff": "2026-07-04T21:00:00Z",
     "asof": "2026-07-05T04:13:47.577022Z",
     "source": "polymarket"
+  },
+  "brazil__norway": {
+    "a": "Brazil",
+    "b": "Norway",
+    "pa": 0.5423,
+    "pd": 0.2637,
+    "pb": 0.194,
+    "raw_pa": 0.545,
+    "raw_pd": 0.265,
+    "raw_pb": 0.195,
+    "kickoff": "2026-07-05T20:00:00Z",
+    "asof": "2026-07-05T22:08:41.605212Z",
+    "source": "polymarket"
   }
 }
