@@ -856,5 +856,18 @@
     "kickoff": "2026-07-04T17:00:00Z",
     "asof": "2026-07-04T19:26:14.409181Z",
     "source": "polymarket"
+  },
+  "france__paraguay": {
+    "a": "Paraguay",
+    "b": "France",
+    "pa": 0.0448,
+    "pd": 0.1343,
+    "pb": 0.8209,
+    "raw_pa": 0.045,
+    "raw_pd": 0.135,
+    "raw_pb": 0.825,
+    "kickoff": "2026-07-04T21:00:00Z",
+    "asof": "2026-07-05T04:13:47.577022Z",
+    "source": "polymarket"
   }
 }

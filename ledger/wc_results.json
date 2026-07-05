@@ -586,5 +586,12 @@
     "ga": 0,
     "gb": 3,
     "stage": "ko"
+  },
+  {
+    "a": "Paraguay",
+    "b": "France",
+    "ga": 0,
+    "gb": 1,
+    "stage": "ko"
   }
 ]
