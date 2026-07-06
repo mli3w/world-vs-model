@@ -600,5 +600,12 @@
     "ga": 1,
     "gb": 2,
     "stage": "ko"
+  },
+  {
+    "a": "Mexico",
+    "b": "England",
+    "ga": 2,
+    "gb": 3,
+    "stage": "ko"
   }
 ]
