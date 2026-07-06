@@ -39,10 +39,12 @@ def _pct(a):
     return f"{a*100:.0f}%"
 
 
-def _rows(n_sims=20000):
+def _rows(n_sims=20000, results=None):
     nz = WM.WL._norm
-    f = WF.fundamental_ladder(n_sims=n_sims, seed=0)
-    pos = WF.group_positions(n_sims=n_sims, seed=0)
+    if results is None:
+        results = WF.load_results()
+    f = WF.fundamental_ladder(n_sims=n_sims, seed=0, results=results)
+    pos = WF.group_positions(n_sims=n_sims, seed=0, results=results)
     adv = f.get("advance", {})
     groups = WM.WL.GROUPS_2026
     out = {}
@@ -60,8 +62,8 @@ def _flag(t, sess):
         return None
 
 
-def build(out=OUT, n_sims=20000):
-    data = _rows(n_sims)
+def build(out=OUT, n_sims=20000, results=None):
+    data = _rows(n_sims, results)
     sess = requests.Session()
     sess.headers.update({"User-Agent": "world-vs-model research"})
     flags = {t: _flag(t, sess) for g in data for t, _ in data[g]}

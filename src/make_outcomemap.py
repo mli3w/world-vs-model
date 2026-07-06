@@ -29,16 +29,26 @@ PANEL, LINE = (22, 32, 52), (44, 60, 90)
 NW, NH = 150, 48                                 # node width/height (bigger = more legible flags/codes)
 
 
-def _bracket(n_sims=20000):
+def _bracket(n_sims=20000, results=None):
+    """The model's most-likely bracket. Once the group stage is decided we pour the REAL final
+    standings into the official slots and honour actual knockout results (eliminated teams drop
+    off the path); before that it is the pure pre-tournament projection. Either way the remaining,
+    unplayed ties are filled by the live-re-forecast Elo model."""
     nz = WM.WL._norm
-    fund = WF.fundamental_ladder(n_sims=n_sims, seed=0)
-    pos = WF.group_positions(n_sims=n_sims, seed=0)
     groups = WM.WL.GROUPS_2026
-    rbg = {g: sorted(t, key=lambda x: sum(i * p for i, p in enumerate(pos.get(nz(x), [0, 0, 0, 1]))))
-           for g, t in groups.items()}
+    fund = WF.fundamental_ladder(n_sims=n_sims, seed=0, results=results)
+    if results and WB.groups_complete(groups, results):
+        rbg, table = WB.group_table(groups, results)           # real final standings
+        third_groups = WB.best_third_groups(rbg, table)        # real best-eight thirds
+    else:
+        pos = WF.group_positions(n_sims=n_sims, seed=0, results=results)
+        rbg = {g: sorted(t, key=lambda x: sum(i * p for i, p in enumerate(pos.get(nz(x), [0, 0, 0, 1]))))
+               for g, t in groups.items()}
+        third_groups = None
     win, adv, r16 = fund["win"], fund["advance"], fund["reach_R16"]
     strength = lambda t: (win.get(nz(t), 0), adv.get(nz(t), 0), r16.get(nz(t), 0))
-    return WB.resolve(rbg, strength), fund
+    played = WB.ko_winners(results)                            # actual knockout winners so far
+    return WB.resolve(rbg, strength, played=played, third_groups=third_groups), fund
 
 
 def _disp(t):
@@ -55,8 +65,11 @@ def _flag(t, sess, size=(38, 28)):
         return None
 
 
-def build(out=OUT, n_sims=20000):
-    br, fund = _bracket(n_sims)
+def build(out=OUT, n_sims=20000, results=None):
+    if results is None:
+        results = WF.load_results()
+    live = bool(results and WB.groups_complete(WM.WL.GROUPS_2026, results))
+    br, fund = _bracket(n_sims, results)
     rounds = br["rounds"]                          # [32, 16, 8, 4, 2, 1] in bracket order
     champ = br["champ"]
     nz = WM.WL._norm
@@ -73,8 +86,10 @@ def build(out=OUT, n_sims=20000):
     for x in range(W):
         d.line([(x, 0), (x, 9)], fill=lerp(TEAL, VIOL, x / W))
     d.text((50, 42), "The most-likely 2026 World Cup bracket", font=MC._font("segoeuib.ttf", 56), fill=INK)
-    d.text((50, 116), "My informed (Elo) model's projection — real FIFA slots, Round of 32 to the champion",
-           font=MC._font("seguisb.ttf", 29), fill=INK2)
+    subtitle = ("Results so far + my informed (Elo) model for the rest — real FIFA slots, Round of 32 to the champion"
+                if live else
+                "My informed (Elo) model's projection — real FIFA slots, Round of 32 to the champion")
+    d.text((50, 116), subtitle, font=MC._font("seguisb.ttf", 29), fill=INK2)
 
     margin, top_y, bot_y = 60, 268, H - 120
     step = (W - 2 * margin - NW) / 10.0

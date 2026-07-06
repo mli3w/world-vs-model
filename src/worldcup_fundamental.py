@@ -25,12 +25,15 @@ liquid, heavily-traded market. So big model-vs-market disagreements are *more* l
 model being cruder than the crowd being wrong — "big disagreement != edge". The value is an
 honest, transparent second opinion that the live scorecard adjudicates. Research/education only.
 """
+import json
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import numpy as np                  # noqa: E402
 import worldcup_sim as W            # noqa: E402  (the independent fundamental engine)
 import worldcup_markets as WM       # noqa: E402  (LADDER levels/slots)
+import wc_bracket as WB             # noqa: E402  (the official 2026 knockout slot table)
 from worldcup_live import GROUPS_2026, _norm   # noqa: E402  (verified Final Draw)
 
 ELO_SOURCE = "World Football Elo Ratings (eloratings.net)"
@@ -71,6 +74,20 @@ TEAM_ELO = {
 }
 
 
+RESULTS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "ledger", "wc_results.json")
+
+
+def load_results(path=RESULTS_PATH):
+    """The played-match ledger (list of {a, b, ga, gb, stage}), or None if absent/empty. Shared by
+    the share-image generators so they re-forecast off the SAME live results the board reads."""
+    try:
+        with open(path) as f:
+            return json.load(f) or None
+    except (OSError, ValueError):
+        return None
+
+
 def _host_base():
     """Base ratings = real Elo + the host bonus for the three co-hosts (pre-shrink, pre-results)."""
     return {t: e + (HOST_BONUS if t in HOSTS else 0.0) for t, e in TEAM_ELO.items()}
@@ -103,6 +120,97 @@ def apply_results(results):
     return base, known
 
 
+def _slot_seats(ranked, third_groups):
+    """Real final standings poured into the OFFICIAL Round-of-32 slot table -> the 32 qualifiers in
+    bracket (top-to-bottom) order, or None if the best-third contingency can't be resolved."""
+    assign = WB.THIRD_ASSIGN.get("".join(sorted(third_groups)))
+    if not assign:
+        return None
+
+    def team_for(slot):
+        kind, who = slot
+        if kind == "W":
+            return ranked[who][0]
+        if kind == "R":
+            return ranked[who][1]
+        return ranked[assign[WB.COLS.index(who)]][2]
+
+    seats = []
+    for _m, a, b in WB.R32:
+        seats += [team_for(a), team_for(b)]
+    return seats
+
+
+def _conditioned_forecast(groups, base, results, n_sims, seed, ko_shrink, rating_sd, top_finals):
+    """The live knockout forecast once the group stage is DECIDED. Instead of re-simulating the
+    tournament from scratch (which keeps handing probability to teams that are already out), it seeds
+    the REAL final standings into the official FIFA slot table, advances the ACTUAL winner of every
+    knockout tie already played, and samples only the UNPLAYED ties by the (shrunk, results-updated)
+    Elo model. So an eliminated team gets exactly the depth it truly reached and zero beyond it, and
+    the survivors' odds reflect who is really left. Returns raw display-name dicts
+    (levels, depth, champions, finals), or None if the bracket can't be filled (falls back to the
+    from-scratch Monte Carlo)."""
+    import collections
+    ranked, table = WB.group_table(groups, results)
+    seats = _slot_seats(ranked, WB.best_third_groups(ranked, table))
+    if seats is None:
+        return None
+    played = WB.ko_winners(results)
+    eliminated = set()                                       # teams knocked out (must not advance again)
+    for pair, w in played.items():
+        eliminated |= set(pair) - {w}
+    ko_base = ratings(ko_shrink, base=base)
+    teams = [t for ts in groups.values() for t in ts]
+    seat_set = set(seats)
+    rounds = len(seats).bit_length() - 1                     # 5 for a 32-team bracket
+    levels = ("advance", "reach_R16", "reach_QF", "reach_SF", "reach_F", "win")
+    cnt = {lv: {t: 0 for t in teams} for lv in levels}
+    depth = {t: [0] * (rounds + 2) for t in teams}           # exit-round buckets: group + R32..champ
+    champ_cnt = {t: 0 for t in teams}
+    finals_cnt = collections.Counter()
+    rng = np.random.default_rng(seed)
+    for _ in range(n_sims):
+        r_k = ({t: ko_base[t] + rng.normal(0.0, rating_sd) for t in ko_base}
+               if rating_sd else ko_base)
+        alive, wins = list(seats), {t: 0 for t in seats}
+        while len(alive) > 1:
+            nxt = []
+            for i in range(0, len(alive), 2):
+                a, b = alive[i], alive[i + 1]
+                w = played.get(frozenset((a, b)))            # a decided tie advances the real winner
+                if w not in (a, b):
+                    if a in eliminated and b not in eliminated:      # already out (lost elsewhere)
+                        w = b
+                    elif b in eliminated and a not in eliminated:
+                        w = a
+                    else:
+                        w = a if rng.random() < W.expected_score(r_k[a], r_k[b]) else b
+                wins[w] += 1
+                nxt.append(w)
+            alive = nxt
+        champ = alive[0]
+        for t in seat_set:
+            cnt["advance"][t] += 1
+        for t, wv in wins.items():
+            if wv >= 1: cnt["reach_R16"][t] += 1
+            if wv >= 2: cnt["reach_QF"][t] += 1
+            if wv >= 3: cnt["reach_SF"][t] += 1
+            if wv >= 4: cnt["reach_F"][t] += 1
+        cnt["win"][champ] += 1
+        for t in teams:
+            depth[t][0 if t not in seat_set else min(wins.get(t, 0), rounds) + 1] += 1
+        champ_cnt[champ] += 1
+        runner = next((t for t, wv in wins.items() if wv == rounds - 1 and t != champ), None)
+        if runner is not None:
+            finals_cnt[tuple(sorted((champ, runner)))] += 1
+    return (
+        {lv: {t: cnt[lv][t] / n_sims for t in teams} for lv in levels},
+        {t: [c / n_sims for c in depth[t]] for t in teams},
+        {t: champ_cnt[t] / n_sims for t in teams},
+        [(a, b, c / n_sims) for (a, b), c in finals_cnt.most_common(top_finals)],
+    )
+
+
 def fundamental_ladder(groups=None, n_sims=20000, seed=0, group_shrink=GROUP_SHRINK,
                        ko_shrink=KO_SHRINK, rating_sd=RATING_SD, results=None):
     """Independent model-implied probability of reaching each ladder level, keyed by the
@@ -110,9 +218,16 @@ def fundamental_ladder(groups=None, n_sims=20000, seed=0, group_shrink=GROUP_SHR
     group stage uses `group_shrink` ratings, the knockout the flatter `ko_shrink` ratings.
     `rating_sd` adds per-simulation rating uncertainty (see worldcup_sim.monte_carlo_ladder).
     `results` (played matches) re-forecasts live: ratings update by Elo and completed group games
-    are held fixed. With results=None this is identical to the pre-tournament forecast."""
+    are held fixed. Once the group stage is DECIDED, the knockout is conditioned on played results
+    (see _conditioned_forecast) so eliminated teams stop drawing probability. With results=None this
+    is identical to the pre-tournament forecast."""
+    groups = groups or GROUPS_2026
     base, known = apply_results(results)
-    L = W.monte_carlo_ladder(groups or GROUPS_2026, ratings(group_shrink, base=base), n_sims=n_sims,
+    if results and WB.groups_complete(groups, results):
+        cond = _conditioned_forecast(groups, base, results, n_sims, seed, ko_shrink, rating_sd, 8)
+        if cond is not None:
+            return {lvl: {_norm(t): p for t, p in d.items()} for lvl, d in cond[0].items()}
+    L = W.monte_carlo_ladder(groups, ratings(group_shrink, base=base), n_sims=n_sims,
                              seed=seed, qualify=2, n_best_third=8,    # 2026 format: top-2 + 8 thirds
                              ko_ratings=ratings(ko_shrink, base=base),
                              known=known or None, rating_sd=rating_sd)
@@ -135,9 +250,22 @@ def fundamental_paths(groups=None, n_sims=20000, seed=0, group_shrink=GROUP_SHRI
     """Joint-path outcomes from the same engine as fundamental_ladder: each team's EXIT-round
     distribution (`depth`), the champion distribution (`champions`), and the most-likely FINAL
     pairings (`finals`). Keyed by NORMALIZED team names so it aligns with the board's ladder.
-    `results` re-forecasts live (same conditioning as fundamental_ladder)."""
+    `results` re-forecasts live (same conditioning as fundamental_ladder: once the groups are
+    decided the knockout paths honour played results, so eliminated teams exit where they truly
+    did)."""
+    groups = groups or GROUPS_2026
     base, known = apply_results(results)
-    P = W.monte_carlo_paths(groups or GROUPS_2026, ratings(group_shrink, base=base), n_sims=n_sims,
+    if results and WB.groups_complete(groups, results):
+        cond = _conditioned_forecast(groups, base, results, n_sims, seed, ko_shrink, rating_sd,
+                                     top_finals)
+        if cond is not None:
+            _lv, depth, champions, finals = cond
+            return dict(
+                depth={_norm(t): v for t, v in depth.items()},
+                champions={_norm(t): v for t, v in champions.items()},
+                finals=[(_norm(a), _norm(b), p) for a, b, p in finals],
+            )
+    P = W.monte_carlo_paths(groups, ratings(group_shrink, base=base), n_sims=n_sims,
                             seed=seed, qualify=2, n_best_third=8,
                             ko_ratings=ratings(ko_shrink, base=base),
                             known=known or None, rating_sd=rating_sd, top_finals=top_finals)

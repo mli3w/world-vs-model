@@ -58,7 +58,48 @@ def test_live_results_reforecast_conditions_on_played_games():
         F.fundamental_ladder(n_sims=1500, seed=0)["advance"][n]      # results=None == default
 
 
-def test_host_bonus_lifts_the_co_hosts_only():
+def _full_group_results():
+    """A complete, decisive set of group results: within each group the listed order sweeps (team i
+    beats every later team). So the group ranking is exactly GROUPS_2026's listing order."""
+    res = []
+    for teams in WL.GROUPS_2026.values():
+        for i, a in enumerate(teams):
+            for b in teams[i + 1:]:
+                res.append(dict(a=a, b=b, ga=2, gb=0, stage="group"))
+    return res
+
+
+def test_conditioned_forecast_activates_only_when_groups_complete_and_stays_normalized():
+    res = _full_group_results()
+    L = F.fundamental_ladder(n_sims=1500, seed=0, results=res)
+    assert set(L) == {"advance", "reach_R16", "reach_QF", "reach_SF", "reach_F", "win"}
+    assert abs(sum(L["win"].values()) - 1) < 1e-6           # one champion
+    assert abs(sum(L["advance"].values()) - 32) < 1e-6      # 32 qualifiers advance
+    for t in L["win"]:                                       # nested per team
+        assert L["advance"][t] >= L["reach_QF"][t] >= L["reach_SF"][t] >= L["reach_F"][t] >= L["win"][t] - 1e-9
+    # a 4th-placed team (didn't qualify) can never reach the knockouts
+    dead = WL._norm(next(iter(WL.GROUPS_2026.values()))[3])
+    assert L["advance"][dead] == 0.0
+
+
+def test_conditioned_forecast_honours_played_knockout_results():
+    """A team recorded as losing a knockout tie exits there: zero probability beyond that round,
+    while its conqueror carries its win through."""
+    res = _full_group_results()
+    base = F.fundamental_ladder(n_sims=1500, seed=0, results=res)
+    # find a real Round-of-32 tie from the seeded bracket, then record the underdog winning it.
+    import wc_bracket as WB
+    ranked, table = WB.group_table(WL.GROUPS_2026, res)
+    seats = F._slot_seats(ranked, WB.best_third_groups(ranked, table))
+    a, b = seats[0], seats[1]                                # the top R32 tie
+    fav = a if base["reach_R16"].get(WL._norm(a), 0) >= base["reach_R16"].get(WL._norm(b), 0) else b
+    dog = b if fav == a else a
+    res2 = res + [dict(a=fav, b=dog, ga=0, gb=1, stage="ko")]   # record the underdog winning the tie
+    live = F.fundamental_ladder(n_sims=1500, seed=0, results=res2)
+    nf, nd = WL._norm(fav), WL._norm(dog)
+    assert live["reach_R16"][nf] == 0.0 and live["reach_QF"][nf] == 0.0   # the favourite is out
+    assert live["win"][nf] == 0.0
+    assert live["reach_R16"][nd] == 1.0                                   # the underdog is through
     base = F.ratings(shrink=1.0, host_bonus=0)
     boosted = F.ratings(shrink=1.0)                                  # default HOST_BONUS
     for h in ("USA", "Canada", "Mexico"):

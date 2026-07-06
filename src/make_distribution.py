@@ -36,9 +36,11 @@ STAGES = [
 N_TEAMS = 28
 
 
-def _rows(n_sims=20000):
+def _rows(n_sims=20000, results=None):
     """Per-team stage distribution (clamped ≥0, sums to 1), sorted by title odds."""
-    f = WF.fundamental_ladder(n_sims=n_sims, seed=0)
+    if results is None:
+        results = WF.load_results()
+    f = WF.fundamental_ladder(n_sims=n_sims, seed=0, results=results)
     adv, r16, qf, sf, rf, win = (f.get(k, {}) for k in
                                  ("advance", "reach_R16", "reach_QF", "reach_SF", "reach_F", "win"))
     out = []
@@ -62,8 +64,8 @@ def _flag(t, sess):
         return None
 
 
-def build(out=OUT, n_sims=20000):
-    rows = _rows(n_sims)
+def build(out=OUT, n_sims=20000, results=None):
+    rows = _rows(n_sims, results)
     sess = requests.Session()
     sess.headers.update({"User-Agent": "world-vs-model research"})
     flags = {r["team"]: _flag(r["team"], sess) for r in rows}
