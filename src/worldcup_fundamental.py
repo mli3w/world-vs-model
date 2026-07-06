@@ -25,6 +25,7 @@ liquid, heavily-traded market. So big model-vs-market disagreements are *more* l
 model being cruder than the crowd being wrong — "big disagreement != edge". The value is an
 honest, transparent second opinion that the live scorecard adjudicates. Research/education only.
 """
+import json
 import os
 import sys
 
@@ -69,6 +70,20 @@ TEAM_ELO = {
     "New Zealand": 1585, "Cape Verde": 1576, "Saudi Arabia": 1566, "Haiti": 1532, "South Africa": 1517,
     "Ghana": 1503, "Curaçao": 1433, "Qatar": 1423,
 }
+
+
+RESULTS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "ledger", "wc_results.json")
+
+
+def load_results(path=RESULTS_PATH):
+    """The played-match ledger (list of {a, b, ga, gb, stage}), or None if absent/empty. Shared by
+    the share-image generators so they re-forecast off the SAME live results the board reads."""
+    try:
+        with open(path) as f:
+            return json.load(f) or None
+    except (OSError, ValueError):
+        return None
 
 
 def _host_base():

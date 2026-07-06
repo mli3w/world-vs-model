@@ -50,3 +50,53 @@ def test_resolve_pours_distinct_teams_and_crowns_a_champion():
             if s[0] == "3":
                 grp = assign[B.COLS.index(s[1])]
                 assert team == f"{grp}3"             # the right group's third filled the slot
+
+
+def test_resolve_honours_a_played_result_over_model_strength():
+    groups = {g: [f"{g}1", f"{g}2", f"{g}3", f"{g}4"] for g in "ABCDEFGHIJKL"}
+    strength = lambda t: ord(t[0]) * 10 + (4 - int(t[1]))
+    base = B.resolve(groups, strength)
+    m0, ta, tb = base["r32"][0]                      # the top Round-of-32 match
+    fav = ta if strength(ta) >= strength(tb) else tb
+    dog = tb if fav == ta else ta
+    # Record the UNDERDOG as the actual winner of that tie; it must now advance to the R16 slot.
+    br = B.resolve(groups, strength, played={frozenset((ta, tb)): dog})
+    assert base["rounds"][1][0] == fav               # projection alone crowns the favourite
+    assert br["rounds"][1][0] == dog                 # a recorded result overrides the projection
+    # A stray winner not actually in the tie is ignored (falls back to strength).
+    stray = B.resolve(groups, strength, played={frozenset((ta, tb)): "Z9"})
+    assert stray["rounds"][1][0] == fav
+
+
+def test_resolve_accepts_explicit_qualifying_thirds():
+    groups = {g: [f"{g}1", f"{g}2", f"{g}3", f"{g}4"] for g in "ABCDEFGHIJKL"}
+    strength = lambda t: ord(t[0]) * 10 + (4 - int(t[1]))
+    thirds = set("ABDEGIKL")                          # a valid 8-group key present in THIRD_ASSIGN
+    br = B.resolve(groups, strength, third_groups=thirds)
+    assign = B.THIRD_ASSIGN["".join(sorted(thirds))]
+    slot = {m: (a, b) for m, a, b in B.R32}
+    for m, ta, tb in br["r32"]:
+        for s, team in zip(slot[m], (ta, tb)):
+            if s[0] == "3":
+                assert team == f"{assign[B.COLS.index(s[1])]}3"
+
+
+def test_group_table_and_helpers_from_results():
+    groups = {"A": ["Alpha", "Bravo", "Charlie", "Delta"]}
+    results = [
+        {"a": "Alpha", "b": "Bravo", "ga": 3, "gb": 0, "stage": "group"},
+        {"a": "Charlie", "b": "Delta", "ga": 1, "gb": 1, "stage": "group"},
+        {"a": "Alpha", "b": "Charlie", "ga": 2, "gb": 0, "stage": "group"},
+        {"a": "Bravo", "b": "Delta", "ga": 1, "gb": 0, "stage": "group"},
+        {"a": "Alpha", "b": "Delta", "ga": 0, "gb": 0, "stage": "group"},
+        {"a": "Bravo", "b": "Charlie", "ga": 2, "gb": 1, "stage": "group"},
+    ]
+    ranked, table = B.group_table(groups, results)
+    assert ranked["A"][0] == "Alpha"                 # 7 pts, tops the group
+    assert table["Alpha"]["Pts"] == 7 and table["Alpha"]["P"] == 3
+    assert B.groups_complete(groups, results)        # all C(4,2)=6 matches present
+    assert not B.groups_complete(groups, results[:5])
+    assert B.best_third_groups(ranked, table, n=1) == {"A"}
+    ko = [{"a": "Alpha", "b": "Bravo", "ga": 0, "gb": 1, "stage": "ko"},
+          {"a": "Charlie", "b": "Delta", "ga": 1, "gb": 1, "stage": "ko"}]  # draw -> omitted
+    assert B.ko_winners(ko) == {frozenset(("Alpha", "Bravo")): "Bravo"}

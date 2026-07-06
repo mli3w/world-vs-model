@@ -959,7 +959,13 @@ def _outcome_map(fundamental, positions, groups, n_sims=20000, paths=None):
         n = nz(team)
         return (win.get(n, 0.0), adv_p.get(n, 0.0), r16_p.get(n, 0.0))
 
-    br = WB.resolve(ranked_by_group, _strength)
+    # Once the groups are decided, pour the REAL standings into the slots, pin the real best-eight
+    # thirds, and advance the ACTUAL knockout winner for ties already played (eliminated teams drop
+    # off the path); the model only fills the unplayed remainder. (Per-round % labels stay the
+    # Monte-Carlo model's -- those are not yet conditioned on knockout results; see worldcup_sim.)
+    played = WB.ko_winners(actual_results) if groups_done else None
+    br = WB.resolve(ranked_by_group, _strength, played=played,
+                    third_groups=(qualifying_3rd_groups if groups_done else None))
     rounds = br["rounds"]                                      # [R32(32), R16(16), QF(8), SF(4), F(2), champ(1)]
     LV = ("advance", "reach_R16", "reach_QF", "reach_SF", "reach_F")  # tooltip prob per round column
 

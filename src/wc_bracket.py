@@ -567,16 +567,32 @@ def qualifying_thirds(standings, strength):
     return "".join(sorted(g for g, _ in thirds[:8]))
 
 
-def resolve(standings, strength):
-    """Pour projected standings into the official slots and converge the bracket.
+def resolve(standings, strength, played=None, third_groups=None):
+    """Pour standings into the official slots and converge the bracket.
 
     Returns a dict:
       r32   : list of 16 (match_no, teamA, teamB) in bracket order
       rounds: [r32_teams(32), r16(16), qf(8), sf(4), final(2), champ(1)] -- flat top-to-bottom lists
-      champ : the projected champion (stronger finalist) or None
-    Advancement is "stronger team wins" by `strength` -- a most-likely projection, not a sim.
+      champ : the projected champion (the surviving finalist) or None
+
+    By default advancement is "stronger team wins" by `strength` -- a most-likely projection.
+    Two knobs make the SAME bracket reflect a tournament already in progress:
+
+      `played`: {frozenset({teamA, teamB}): winner} of knockout ties that have actually been
+                decided. Those matchups advance the RECORDED winner instead of the stronger side,
+                so the map shows results as they come in and drops eliminated teams from the path.
+                A tie that isn't in `played` (not yet played, or a draw whose shoot-out winner we
+                don't store) falls back to `strength`. NOTE: this fixes the deterministic bracket
+                STRUCTURE; the per-team reach probabilities elsewhere are the Monte-Carlo model's
+                and are not (yet) conditioned on knockout results -- see worldcup_sim.
+
+      `third_groups`: an iterable of the eight group letters whose third-placed team qualifies.
+                Pin this to the REAL best-eight once the group stage is decided; when omitted the
+                eight are chosen by `strength` (the pre-tournament projection).
     """
-    key = qualifying_thirds(standings, strength)
+    played = played or {}
+    key = "".join(sorted(third_groups)) if third_groups is not None \
+        else qualifying_thirds(standings, strength)
     assign = THIRD_ASSIGN.get(key)
 
     def team_for(slot):
@@ -590,23 +606,91 @@ def resolve(standings, strength):
         grp = assign[COLS.index(who)]
         return standings[grp][2]
 
+    def advance(a, b):
+        if a is None and b is None:
+            return None
+        if a is None:
+            return b
+        if b is None:
+            return a
+        w = played.get(frozenset((a, b)))
+        if w in (a, b):                      # a recorded result trumps the model's projection
+            return w
+        return a if strength(a) >= strength(b) else b
+
     r32 = [(m, team_for(a), team_for(b)) for (m, a, b) in R32]
     cur = []
     for _, a, b in r32:
         cur += [a, b]
     rounds = [cur]
     while len(cur) > 1:
-        nxt = []
-        for a, b in zip(cur[0::2], cur[1::2]):
-            if a is None and b is None:
-                nxt.append(None)
-            elif a is None:
-                nxt.append(b)
-            elif b is None:
-                nxt.append(a)
-            else:
-                nxt.append(a if strength(a) >= strength(b) else b)
-        rounds.append(nxt)
-        cur = nxt
+        cur = [advance(a, b) for a, b in zip(cur[0::2], cur[1::2])]
+        rounds.append(cur)
     champ = rounds[-1][0] if rounds[-1] else None
     return {"r32": r32, "rounds": rounds, "champ": champ}
+
+
+# --------------------------------------------------------------------------------------------------
+# Live state from results -- shared by the board and the share-image generators so every "outcome
+# map" pours the SAME real standings into the slots and honours the SAME knockout results.
+# --------------------------------------------------------------------------------------------------
+def _group_key(table, team):
+    s = table.get(team, {"Pts": 0, "GF": 0, "GA": 0})
+    return (-s["Pts"], -(s["GF"] - s["GA"]), -s["GF"])   # points, then goal difference, then goals for
+
+
+def group_table(groups, results):
+    """Actual group standings from played GROUP results. Returns
+    (ranked, table): `ranked` = {group_letter: [teams ordered by Pts, GD, GF]},
+    `table` = {team: {"Pts","GF","GA","P"}}. Mirrors the group-stage tiebreak used by the sim."""
+    table = {t: {"Pts": 0, "GF": 0, "GA": 0, "P": 0} for ts in groups.values() for t in ts}
+    team_group = {t: g for g, ts in groups.items() for t in ts}
+    for r in results or []:
+        if r.get("stage", "group") != "group":
+            continue
+        a, b = r["a"], r["b"]
+        if a not in team_group or b not in team_group:
+            continue
+        ga, gb = int(r["ga"]), int(r["gb"])
+        for t, gf, ga_ in ((a, ga, gb), (b, gb, ga)):
+            table[t]["P"] += 1
+            table[t]["GF"] += gf
+            table[t]["GA"] += ga_
+        if ga > gb:
+            table[a]["Pts"] += 3
+        elif gb > ga:
+            table[b]["Pts"] += 3
+        else:
+            table[a]["Pts"] += 1
+            table[b]["Pts"] += 1
+    ranked = {g: sorted(ts, key=lambda t: _group_key(table, t)) for g, ts in groups.items()}
+    return ranked, table
+
+
+def best_third_groups(ranked, table, n=8):
+    """The `n` group letters whose third-placed team qualifies as a best-third, by real Pts/GD/GF."""
+    thirds = [(g, row[2]) for g, row in ranked.items() if len(row) >= 3]
+    thirds.sort(key=lambda gt: _group_key(table, gt[1]))
+    return set(g for g, _ in thirds[:n])
+
+
+def ko_winners(results):
+    """{frozenset({a, b}): winner} for every DECIDED knockout tie (stage == 'ko'). Draws are
+    skipped -- a level scoreline means the tie went to a shoot-out whose winner we don't store, so
+    resolve() falls back to model strength for it. Feed this to resolve(played=...)."""
+    out = {}
+    for r in results or []:
+        if r.get("stage") != "ko":
+            continue
+        a, b, ga, gb = r["a"], r["b"], int(r["ga"]), int(r["gb"])
+        if ga == gb:
+            continue
+        out[frozenset((a, b))] = a if ga > gb else b
+    return out
+
+
+def groups_complete(groups, results):
+    """True once every group match has been played (so the R32 line-up is real, not projected)."""
+    need = sum(len(ts) * (len(ts) - 1) // 2 for ts in groups.values())
+    got = sum(1 for r in (results or []) if r.get("stage", "group") == "group")
+    return got >= need

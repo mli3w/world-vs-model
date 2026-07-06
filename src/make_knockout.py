@@ -40,9 +40,11 @@ def _disp(t):
     return next((x for x in WM.WL.FIELD if nz(x) == t), t)
 
 
-def _rows(n_sims=20000):
+def _rows(n_sims=20000, results=None):
     """For each knockout round: the model's and the market's top-k teams (by reach probability)."""
-    fund = WF.fundamental_ladder(n_sims=n_sims, seed=0)
+    if results is None:
+        results = WF.load_results()
+    fund = WF.fundamental_ladder(n_sims=n_sims, seed=0, results=results)
     mkt = WM.fetch_ladder()
     out = []
     for lvl, label, k in ROUNDS:
@@ -65,8 +67,8 @@ def _flags(teams, sess, size=(64, 47)):
     return imgs
 
 
-def build(rows=None, out=OUT):
-    rows = rows or _rows()
+def build(rows=None, out=OUT, results=None):
+    rows = rows or _rows(results=results)
     sess = requests.Session()
     sess.headers.update({"User-Agent": "world-vs-model research"})
     allteams = {t for r in rows for t in r["union"]}

@@ -36,8 +36,10 @@ def _font(name, size):
         return ImageFont.load_default()
 
 
-def _rows():
-    fl = WF.fundamental_ladder(n_sims=20000, seed=0)
+def _rows(results=None):
+    if results is None:
+        results = WF.load_results()
+    fl = WF.fundamental_ladder(n_sims=20000, seed=0, results=results)
     mkt = WM.fetch_ladder()
     s = sum(mkt["win"].values()) or 1.0
     dv = {t: p / s for t, p in mkt["win"].items()}
@@ -67,8 +69,8 @@ def _star(d, cx, cy, r, fill):
     d.polygon(pts, fill=fill)
 
 
-def build(rows=None, out=OUT):
-    rows = rows or _rows()
+def build(rows=None, out=OUT, results=None):
+    rows = rows or _rows(results)
     W, H = 1200, 1280
     im = Image.new("RGBA", (W, H), NAVY + (255,))
     d = ImageDraw.Draw(im)
