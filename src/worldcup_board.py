@@ -961,8 +961,9 @@ def _outcome_map(fundamental, positions, groups, n_sims=20000, paths=None):
 
     # Once the groups are decided, pour the REAL standings into the slots, pin the real best-eight
     # thirds, and advance the ACTUAL knockout winner for ties already played (eliminated teams drop
-    # off the path); the model only fills the unplayed remainder. (Per-round % labels stay the
-    # Monte-Carlo model's -- those are not yet conditioned on knockout results; see worldcup_sim.)
+    # off the path); the model only fills the unplayed remainder. The per-round % labels come from
+    # the fundamental ladder, which is itself conditioned on played knockout results once the group
+    # stage is complete (worldcup_fundamental._conditioned_forecast), so they agree with the bracket.
     played = WB.ko_winners(actual_results) if groups_done else None
     br = WB.resolve(ranked_by_group, _strength, played=played,
                     third_groups=(qualifying_3rd_groups if groups_done else None))

@@ -582,15 +582,22 @@ def resolve(standings, strength, played=None, third_groups=None):
                 decided. Those matchups advance the RECORDED winner instead of the stronger side,
                 so the map shows results as they come in and drops eliminated teams from the path.
                 A tie that isn't in `played` (not yet played, or a draw whose shoot-out winner we
-                don't store) falls back to `strength`. NOTE: this fixes the deterministic bracket
-                STRUCTURE; the per-team reach probabilities elsewhere are the Monte-Carlo model's
-                and are not (yet) conditioned on knockout results -- see worldcup_sim.
+                don't store) falls back to `strength`. This fixes the deterministic bracket
+                STRUCTURE; the per-team reach probabilities are conditioned separately once the
+                group stage is decided (worldcup_fundamental._conditioned_forecast).
 
       `third_groups`: an iterable of the eight group letters whose third-placed team qualifies.
                 Pin this to the REAL best-eight once the group stage is decided; when omitted the
                 eight are chosen by `strength` (the pre-tournament projection).
     """
     played = played or {}
+    # A team recorded as losing a knockout tie is OUT of the tournament -- it must never advance
+    # again, even where an incomplete feed can't reproduce the exact matchup (e.g. its conqueror's
+    # own earlier result is missing). This is a soft constraint on top of the exact-winner map.
+    eliminated = set()
+    for pair, w in played.items():
+        if w in pair:
+            eliminated |= set(pair) - {w}
     key = "".join(sorted(third_groups)) if third_groups is not None \
         else qualifying_thirds(standings, strength)
     assign = THIRD_ASSIGN.get(key)
@@ -616,6 +623,10 @@ def resolve(standings, strength, played=None, third_groups=None):
         w = played.get(frozenset((a, b)))
         if w in (a, b):                      # a recorded result trumps the model's projection
             return w
+        if a in eliminated and b not in eliminated:   # a is already out (lost elsewhere)
+            return b
+        if b in eliminated and a not in eliminated:
+            return a
         return a if strength(a) >= strength(b) else b
 
     r32 = [(m, team_for(a), team_for(b)) for (m, a, b) in R32]
