@@ -8,8 +8,11 @@ the board build, so the site picks up new results on every refresh without manua
 
     python src/auto_feed_results.py [--days N]
 
-Default scans yesterday, today, and tomorrow (UTC) to catch boundary-crossing kickoffs. Errors
-silently: an API blip prints to stderr but exits 0 so the cron isn't blocked.
+By default it rescans the WHOLE tournament (from the opening match through tomorrow) so any match
+missed on its own matchday — an API blip, or a cron/deploy that failed that day — is BACKFILLED on
+the next run rather than lost forever. feed_result.add is idempotent, so re-seeing a recorded match
+is a cheap no-op. Pass `--days N` to scan only the last N days when you know there's no gap to heal.
+Errors silently: an API blip prints to stderr but exits 0 so the cron isn't blocked.
 
 Research/education only.
 """
@@ -24,6 +27,7 @@ import feed_result as F                                      # noqa: E402  (F.ad
 import worldcup_markets as WM                                # noqa: E402
 
 ESPN_URL = "http://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard"
+TOURNAMENT_START = dt.date(2026, 6, 11)   # the 2026 World Cup opening match — the backfill floor
 
 # ESPN team-name → our canonical FIELD name (covers every form we've seen).
 ALIAS = {
@@ -93,15 +97,18 @@ def fetch_day(day, timeout=15):
     return out
 
 
-def run(days=3, today=None):
-    """Scan a window of days and feed any settled matches not already recorded.
+def run(days=None, today=None):
+    """Feed any settled matches not already recorded. With `days=None` (the default) it rescans the
+    whole tournament from TOURNAMENT_START through tomorrow, so a match missed on its matchday gets
+    BACKFILLED rather than lost; pass `days=N` to scan only the last N days. The upper bound is
+    tomorrow so a kickoff straddling UTC midnight is caught either side of the boundary.
     Returns (added, skipped, unknown)."""
     today = today or dt.date.today()
+    start = today - dt.timedelta(days=days - 1) if days else TOURNAMENT_START
+    end = today + dt.timedelta(days=1)
     added, skipped, unknown = 0, 0, []
-    # Scan from (days-1) days ago through tomorrow, so a kickoff that straddles UTC midnight
-    # gets caught regardless of which side of the boundary ESPN files it under.
-    for delta in range(-(days - 1), 2):
-        day = today + dt.timedelta(days=delta)
+    day = start
+    while day <= end:
         for name_a, name_b, ga, gb, stage in fetch_day(day):
             ca = _resolve_team(name_a)
             cb = _resolve_team(name_b)
@@ -113,12 +120,14 @@ def run(days=3, today=None):
                 added += 1
             except SystemExit:                              # F.add raises on duplicates — idempotent
                 skipped += 1
+        day += dt.timedelta(days=1)
     return added, skipped, unknown
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Auto-feed WC 2026 results from ESPN's public API")
-    ap.add_argument("--days", type=int, default=3, help="scan window in days back from today")
+    ap.add_argument("--days", type=int, default=None,
+                    help="scan only the last N days (default: rescan the whole tournament to backfill gaps)")
     a = ap.parse_args(argv)
     added, skipped, unknown = run(days=a.days)
     print(f"[auto-feed] added={added} already-recorded={skipped} unknown-teams={len(unknown)}")

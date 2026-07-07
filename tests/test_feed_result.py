@@ -28,6 +28,18 @@ def test_add_appends_full_names_and_is_idempotent(tmp_path):
     assert len(F._load(p)) == 2                           # unchanged
 
 
+def test_group_and_knockout_meeting_of_the_same_pair_coexist(tmp_path):
+    """Dedup is per (pairing, stage): a group game and a later knockout game between the same two
+    teams are distinct matches, but the same pair in the same stage is still rejected."""
+    p = str(tmp_path / "wc.json")
+    F.add("BRA", "CRO", 2, 1, stage="group", path=p)
+    F.add("BRA", "CRO", 0, 0, stage="ko", path=p)             # a later KO meeting is a new match
+    assert len(F._load(p)) == 2
+    with pytest.raises(SystemExit):                            # same pair + same stage still rejected
+        F.add("CRO", "BRA", 1, 1, stage="ko", path=p)
+    assert len(F._load(p)) == 2
+
+
 def test_a_team_cannot_play_itself(tmp_path):
     with pytest.raises(SystemExit):
         F.add("BRA", "Brazil", 1, 0, path=str(tmp_path / "r.json"))

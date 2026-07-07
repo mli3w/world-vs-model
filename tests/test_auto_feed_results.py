@@ -57,6 +57,20 @@ def test_run_flags_unknown_teams_without_crashing(monkeypatch, tmp_path):
     assert added == 0 and unknown == [("Atlantis", "Wakanda")]
 
 
+def test_full_scan_backfills_a_matchday_a_narrow_window_would_miss(monkeypatch, tmp_path):
+    """The default (days=None) rescans from the tournament start, so an R32 result played a week ago
+    that was never recorded gets backfilled — the 3-day window would have lost it for good."""
+    def fake_fetch(day, timeout=15):
+        return [("Germany", "Paraguay", 0, 1, "ko")] if day == dt.date(2026, 6, 29) else []
+    monkeypatch.setattr(A, "fetch_day", fake_fetch)
+    today = dt.date(2026, 7, 6)                                 # a week after the match
+    assert A.run(days=3, today=today)[0] == 0                   # narrow window never reaches Jun 29
+    added, _, unknown = A.run(today=today)                      # full-tournament scan backfills it
+    assert added == 1 and unknown == []
+    rows = json.loads((tmp_path / "ledger" / "wc_results.json").read_text())
+    assert dict(a="Germany", b="Paraguay", ga=0, gb=1, stage="ko") in rows
+
+
 def test_stage_hint_switches_to_ko_after_jun_27(monkeypatch, tmp_path):
     seen_stages = []
 

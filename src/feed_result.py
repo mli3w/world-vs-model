@@ -53,8 +53,9 @@ def add(team_a, team_b, ga, gb, stage="group", path=RESULTS):
     if a == b:
         raise SystemExit("[feed] a team can't play itself")
     rows = _load(path)
-    if any(frozenset((r["a"], r["b"])) == frozenset((a, b)) for r in rows):
-        raise SystemExit(f"[feed] {a} v {b} already recorded — edit {path} by hand to change it")
+    if any(frozenset((r["a"], r["b"])) == frozenset((a, b)) and r.get("stage", "group") == stage
+           for r in rows):
+        raise SystemExit(f"[feed] {a} v {b} ({stage}) already recorded — edit {path} by hand to change it")
     rows.append(dict(a=a, b=b, ga=int(ga), gb=int(gb), stage=stage))
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
