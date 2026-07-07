@@ -659,5 +659,12 @@
     "gb": 1,
     "stage": "ko",
     "adv": "Egypt"
+  },
+  {
+    "a": "Argentina",
+    "b": "Egypt",
+    "ga": 3,
+    "gb": 2,
+    "stage": "ko"
   }
 ]
