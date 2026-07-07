@@ -40,6 +40,17 @@ def test_group_and_knockout_meeting_of_the_same_pair_coexist(tmp_path):
     assert len(F._load(p)) == 2
 
 
+def test_penalty_advancer_is_recorded_and_validated(tmp_path):
+    p = str(tmp_path / "wc.json")
+    rows = F.add("GER", "PAR", 1, 1, stage="ko", adv="Paraguay", path=p)
+    assert rows[0] == dict(a="Germany", b="Paraguay", ga=1, gb=1, stage="ko", adv="Paraguay")
+    with pytest.raises(SystemExit):                            # advancer must be one of the two teams
+        F.add("NED", "MAR", 1, 1, stage="ko", adv="Spain", path=p)
+    # a decisive result stores no adv key
+    r2 = F.add("BEL", "SEN", 3, 2, stage="ko", path=p)
+    assert "adv" not in r2[-1]
+
+
 def test_a_team_cannot_play_itself(tmp_path):
     with pytest.raises(SystemExit):
         F.add("BRA", "Brazil", 1, 0, path=str(tmp_path / "r.json"))

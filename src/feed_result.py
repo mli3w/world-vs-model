@@ -47,20 +47,30 @@ def _load(path=RESULTS):
         return []
 
 
-def add(team_a, team_b, ga, gb, stage="group", path=RESULTS):
-    """Append a played match (full team names) to the results file. Idempotent per pairing."""
+def add(team_a, team_b, ga, gb, stage="group", adv=None, path=RESULTS):
+    """Append a played match (full team names) to the results file. Idempotent per (pairing, stage).
+    `adv` records who advanced when a knockout tie is level after extra time and decided on
+    penalties — with ga == gb the score alone can't say who went through, so the ledger stores the
+    advancer and the model drops the loser accordingly."""
     a, b = _resolve(team_a), _resolve(team_b)
     if a == b:
         raise SystemExit("[feed] a team can't play itself")
+    w = _resolve(adv) if adv is not None else None
+    if w is not None and w not in (a, b):
+        raise SystemExit(f"[feed] advancer '{adv}' must be one of {a} / {b}")
     rows = _load(path)
     if any(frozenset((r["a"], r["b"])) == frozenset((a, b)) and r.get("stage", "group") == stage
            for r in rows):
         raise SystemExit(f"[feed] {a} v {b} ({stage}) already recorded — edit {path} by hand to change it")
-    rows.append(dict(a=a, b=b, ga=int(ga), gb=int(gb), stage=stage))
+    row = dict(a=a, b=b, ga=int(ga), gb=int(gb), stage=stage)
+    if w is not None:
+        row["adv"] = w
+    rows.append(row)
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(rows, f, indent=2)
-    print(f"[feed] recorded {a} {int(ga)}-{int(gb)} {b} ({stage}) -> {path}  ({len(rows)} matches total)")
+    tail = f"  ({w} adv on pens)" if w is not None else ""
+    print(f"[feed] recorded {a} {int(ga)}-{int(gb)} {b} ({stage}){tail} -> {path}  ({len(rows)} matches total)")
     return rows
 
 
@@ -80,8 +90,10 @@ def main(argv=None):
     ap.add_argument("gb", type=int, help="goals for teamB")
     ap.add_argument("--stage", default="group", choices=["group", "ko"],
                     help="group (default) conditions the group sim; ko updates ratings only")
+    ap.add_argument("--adv", default=None,
+                    help="for a knockout tie level after ET: the team that advanced on penalties")
     a = ap.parse_args(argv)
-    add(a.teamA, a.teamB, a.ga, a.gb, a.stage)
+    add(a.teamA, a.teamB, a.ga, a.gb, a.stage, adv=a.adv)
 
 
 if __name__ == "__main__":

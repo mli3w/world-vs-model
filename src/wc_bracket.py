@@ -686,17 +686,22 @@ def best_third_groups(ranked, table, n=8):
 
 
 def ko_winners(results):
-    """{frozenset({a, b}): winner} for every DECIDED knockout tie (stage == 'ko'). Draws are
-    skipped -- a level scoreline means the tie went to a shoot-out whose winner we don't store, so
-    resolve() falls back to model strength for it. Feed this to resolve(played=...)."""
+    """{frozenset({a, b}): winner} for every DECIDED knockout tie (stage == 'ko'). A decisive
+    scoreline gives the winner directly; a level scoreline means the tie went to a shoot-out, so
+    the advancer is read from the result's optional `adv` field (recorded by feed_result --adv).
+    A drawn tie with no `adv` is skipped, so resolve() falls back to model strength for it. Feed
+    this to resolve(played=...)."""
     out = {}
     for r in results or []:
         if r.get("stage") != "ko":
             continue
         a, b, ga, gb = r["a"], r["b"], int(r["ga"]), int(r["gb"])
-        if ga == gb:
-            continue
-        out[frozenset((a, b))] = a if ga > gb else b
+        if ga > gb:
+            out[frozenset((a, b))] = a
+        elif gb > ga:
+            out[frozenset((a, b))] = b
+        elif r.get("adv") in (a, b):             # drawn tie decided on penalties
+            out[frozenset((a, b))] = r["adv"]
     return out
 
 

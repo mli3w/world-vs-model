@@ -621,5 +621,43 @@
     "ga": 1,
     "gb": 4,
     "stage": "ko"
+  },
+  {
+    "a": "Germany",
+    "b": "Paraguay",
+    "ga": 1,
+    "gb": 1,
+    "stage": "ko",
+    "adv": "Paraguay"
+  },
+  {
+    "a": "Netherlands",
+    "b": "Morocco",
+    "ga": 1,
+    "gb": 1,
+    "stage": "ko",
+    "adv": "Morocco"
+  },
+  {
+    "a": "Belgium",
+    "b": "Senegal",
+    "ga": 3,
+    "gb": 2,
+    "stage": "ko"
+  },
+  {
+    "a": "Argentina",
+    "b": "Cape Verde",
+    "ga": 3,
+    "gb": 2,
+    "stage": "ko"
+  },
+  {
+    "a": "Australia",
+    "b": "Egypt",
+    "ga": 1,
+    "gb": 1,
+    "stage": "ko",
+    "adv": "Egypt"
   }
 ]

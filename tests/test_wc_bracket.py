@@ -98,5 +98,15 @@ def test_group_table_and_helpers_from_results():
     assert not B.groups_complete(groups, results[:5])
     assert B.best_third_groups(ranked, table, n=1) == {"A"}
     ko = [{"a": "Alpha", "b": "Bravo", "ga": 0, "gb": 1, "stage": "ko"},
-          {"a": "Charlie", "b": "Delta", "ga": 1, "gb": 1, "stage": "ko"}]  # draw -> omitted
+          {"a": "Charlie", "b": "Delta", "ga": 1, "gb": 1, "stage": "ko"}]  # draw, no adv -> omitted
     assert B.ko_winners(ko) == {frozenset(("Alpha", "Bravo")): "Bravo"}
+
+
+def test_ko_winners_reads_the_penalty_advancer_on_a_level_tie():
+    ko = [{"a": "Germany", "b": "Paraguay", "ga": 1, "gb": 1, "stage": "ko", "adv": "Paraguay"},
+          {"a": "Belgium", "b": "Senegal", "ga": 3, "gb": 2, "stage": "ko"},
+          {"a": "Spain", "b": "Portugal", "ga": 1, "gb": 1, "stage": "ko"}]     # level, no adv -> skip
+    w = B.ko_winners(ko)
+    assert w[frozenset(("Germany", "Paraguay"))] == "Paraguay"    # shoot-out advancer honoured
+    assert w[frozenset(("Belgium", "Senegal"))] == "Belgium"      # decisive score
+    assert frozenset(("Spain", "Portugal")) not in w             # level with no adv -> model fallback

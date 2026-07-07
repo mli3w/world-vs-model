@@ -63,8 +63,10 @@ def _resolve_team(name):
 
 
 def fetch_day(day, timeout=15):
-    """Return list of (team_a_name, team_b_name, ga, gb, stage_hint) for fully-time matches.
-    `stage_hint` is "group" pre-Round-of-32 and "ko" thereafter (we infer by date)."""
+    """Return list of (team_a, team_b, ga, gb, stage_hint, adv) for COMPLETED matches. `stage_hint`
+    is "group" pre-Round-of-32 and "ko" thereafter (by date). `adv` is the advancing team when a
+    knockout tie is level after extra time and decided on penalties (ESPN flags the winner even for
+    a shoot-out), else None — so we don't lose ties that don't end STATUS_FULL_TIME."""
     url = f"{ESPN_URL}?dates={day.strftime('%Y%m%d')}"
     try:
         r = requests.get(url, timeout=timeout, headers={"User-Agent": "world-vs-model research"})
@@ -80,8 +82,9 @@ def fetch_day(day, timeout=15):
     stage = "group" if day <= dt.date(2026, 6, 27) else "ko"
     for ev in data.get("events", []):
         comp = (ev.get("competitions") or [{}])[0]
-        status = ((comp.get("status") or {}).get("type") or {}).get("name", "")
-        if status != "STATUS_FULL_TIME":
+        # Trust ESPN's `completed` flag over a specific status name, so a tie decided in extra time
+        # or on penalties (STATUS_FULL_PEN etc.) is ingested, not silently dropped.
+        if not (((comp.get("status") or {}).get("type") or {}).get("completed")):
             continue
         teams = comp.get("competitors") or []
         if len(teams) != 2:
@@ -93,7 +96,16 @@ def fetch_day(day, timeout=15):
             gb = int(teams[1].get("score") or 0)
         except (TypeError, ValueError):
             continue
-        out.append((name_a, name_b, ga, gb, stage))
+        adv = None
+        if ga == gb and stage == "ko":                         # level tie -> read the shoot-out winner
+            wa, wb = teams[0].get("winner") is True, teams[1].get("winner") is True
+            if wa and not wb:
+                adv = name_a
+            elif wb and not wa:
+                adv = name_b
+            else:
+                continue                                       # can't tell who advanced -> skip, not a false draw
+        out.append((name_a, name_b, ga, gb, stage, adv))
     return out
 
 
@@ -109,14 +121,17 @@ def run(days=None, today=None):
     added, skipped, unknown = 0, 0, []
     day = start
     while day <= end:
-        for name_a, name_b, ga, gb, stage in fetch_day(day):
+        for rec in fetch_day(day):
+            name_a, name_b, ga, gb, stage = rec[:5]
+            adv = rec[5] if len(rec) > 5 else None
             ca = _resolve_team(name_a)
             cb = _resolve_team(name_b)
             if not ca or not cb:
                 unknown.append((name_a, name_b))
                 continue
+            cadv = _resolve_team(adv) if adv else None
             try:
-                F.add(ca, cb, ga, gb, stage=stage)
+                F.add(ca, cb, ga, gb, stage=stage, adv=cadv)
                 added += 1
             except SystemExit:                              # F.add raises on duplicates — idempotent
                 skipped += 1
