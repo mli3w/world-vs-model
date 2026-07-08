@@ -666,5 +666,13 @@
     "ga": 3,
     "gb": 2,
     "stage": "ko"
+  },
+  {
+    "a": "Switzerland",
+    "b": "Colombia",
+    "ga": 0,
+    "gb": 0,
+    "stage": "ko",
+    "adv": "Switzerland"
   }
 ]
