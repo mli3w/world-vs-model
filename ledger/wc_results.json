@@ -674,5 +674,12 @@
     "gb": 0,
     "stage": "ko",
     "adv": "Switzerland"
+  },
+  {
+    "a": "France",
+    "b": "Morocco",
+    "ga": 2,
+    "gb": 0,
+    "stage": "ko"
   }
 ]
