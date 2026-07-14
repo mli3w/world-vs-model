@@ -1,9 +1,9 @@
 {
-  "as_of": "2026-06-28",
+  "as_of": "2026-07-14",
   "points": {
-    "market": 25,
-    "zero_knowledge": 25,
-    "elo": 25
+    "market": 65,
+    "zero_knowledge": 65,
+    "elo": 73
   },
   "levels": [
     {
@@ -57,7 +57,7 @@
       "label": "Quarter-finals",
       "slots": 8,
       "weight": 4,
-      "resolved": false,
+      "resolved": true,
       "picks": {
         "market": [
           "spain",
@@ -81,7 +81,11 @@
           "brazil"
         ]
       },
-      "hits": {},
+      "hits": {
+        "market": 4,
+        "zero_knowledge": 4,
+        "elo": 4
+      },
       "agree": 7,
       "contested": {
         "model": [
@@ -97,7 +101,7 @@
       "label": "Semi-finals",
       "slots": 4,
       "weight": 8,
-      "resolved": false,
+      "resolved": true,
       "picks": {
         "market": [
           "spain",
@@ -121,7 +125,11 @@
           "brazil"
         ]
       },
-      "hits": {},
+      "hits": {
+        "market": 3,
+        "zero_knowledge": 3,
+        "elo": 4
+      },
       "agree": 3,
       "contested": {
         "model": [
@@ -214,5 +222,5 @@
     "zero_knowledge": "spain",
     "elo": "spain"
   },
-  "n_resolved": 1
+  "n_resolved": 3
 }

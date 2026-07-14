@@ -1,24 +1,24 @@
 {
-  "as_of": "2026-06-28",
+  "as_of": "2026-07-14",
   "n_total": 476,
-  "n_resolved": 188,
+  "n_resolved": 736,
   "overall": {
-    "hit_rate": 0.574,
-    "lift": -0.0634,
-    "brier": 0.2018
+    "hit_rate": 0.53,
+    "lift": -0.0178,
+    "brier": 0.0891
   },
   "by_model": {
     "zero_knowledge": {
-      "brier": 0.1387,
-      "skill_vs_market": -0.0002,
-      "hit_rate": 0.745,
-      "n": 94
+      "brier": 0.0694,
+      "skill_vs_market": 0.0019,
+      "hit_rate": 0.853,
+      "n": 368
     },
     "elo": {
-      "brier": 0.2018,
-      "skill_vs_market": -0.0634,
-      "hit_rate": 0.574,
-      "n": 94
+      "brier": 0.0891,
+      "skill_vs_market": -0.0178,
+      "hit_rate": 0.53,
+      "n": 368
     }
   }
 }
