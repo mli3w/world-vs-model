@@ -249,6 +249,9 @@ def main(argv=None):
     n += resolve_ko_level("reach_QF", min_round=3, dry_run=a.dry_run)
     n += resolve_ko_level("reach_SF", min_round=4, dry_run=a.dry_run)
     n += resolve_ko_level("reach_F",  min_round=5, dry_run=a.dry_run)
+    # "win": only mark 0 for teams eliminated before the Final. The 2 finalists stay open
+    # until the Final is played and we know the champion (min_round=6 = needs 5 KO wins).
+    n += resolve_ko_level("win",      min_round=6, dry_run=a.dry_run)
     print(f"[auto-resolve] resolved {n} rung(s)")
     return 0
 

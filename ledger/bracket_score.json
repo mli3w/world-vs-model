@@ -1,9 +1,9 @@
 {
-  "as_of": "2026-07-14",
+  "as_of": "2026-07-16",
   "points": {
-    "market": 65,
-    "zero_knowledge": 65,
-    "elo": 73
+    "market": 81,
+    "zero_knowledge": 81,
+    "elo": 105
   },
   "levels": [
     {
@@ -47,8 +47,8 @@
           "australia"
         ],
         "market": [
-          "bosniaandherzegovina",
-          "algeria"
+          "algeria",
+          "bosniaandherzegovina"
         ]
       }
     },
@@ -145,7 +145,7 @@
       "label": "Final",
       "slots": 2,
       "weight": 16,
-      "resolved": false,
+      "resolved": true,
       "picks": {
         "market": [
           "spain",
@@ -169,7 +169,11 @@
           "brazil"
         ]
       },
-      "hits": {},
+      "hits": {
+        "market": 1,
+        "zero_knowledge": 1,
+        "elo": 2
+      },
       "agree": 1,
       "contested": {
         "model": [
@@ -222,5 +226,5 @@
     "zero_knowledge": "spain",
     "elo": "spain"
   },
-  "n_resolved": 3
+  "n_resolved": 4
 }
