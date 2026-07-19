@@ -716,5 +716,12 @@
     "ga": 1,
     "gb": 2,
     "stage": "ko"
+  },
+  {
+    "a": "France",
+    "b": "England",
+    "ga": 4,
+    "gb": 6,
+    "stage": "ko"
   }
 ]
