@@ -1,6 +1,6 @@
 {
-  "as_of": "2026-07-16",
-  "n_resolved": 468,
+  "as_of": "2026-07-20",
+  "n_resolved": 472,
   "models": [
     "elo",
     "zero_knowledge"
@@ -30,8 +30,8 @@
       "zero_knowledge": 0.5123
     },
     "win": {
-      "elo": 0.502,
-      "zero_knowledge": 0.498
+      "elo": 0.5003,
+      "zero_knowledge": 0.4997
     }
   },
   "ensemble": {
@@ -86,18 +86,18 @@
     "win::spain": 0.1716,
     "win::newzealand": 0.0004,
     "win::switzerland": 0.0146,
-    "win::england": 0.0865,
-    "win::france": 0.1369,
+    "win::england": 0.0866,
+    "win::france": 0.1371,
     "win::southkorea": 0.0033,
     "win::haiti": 0.0001,
-    "win::brazil": 0.0673,
+    "win::brazil": 0.0674,
     "win::jordan": 0.0006,
     "win::curacao": 0.0001,
-    "win::argentina": 0.1032,
+    "win::argentina": 0.1031,
     "win::germany": 0.0384,
-    "win::colombia": 0.0292,
+    "win::colombia": 0.0291,
     "win::iran": 0.0035,
-    "win::portugal": 0.0787,
+    "win::portugal": 0.0788,
     "win::ghana": 0.0004,
     "win::netherlands": 0.0376,
     "win::algeria": 0.0023,
@@ -112,7 +112,7 @@
     "win::japan": 0.0204,
     "win::norway": 0.023,
     "win::tunisia": 0.0004,
-    "win::ecuador": 0.0201,
+    "win::ecuador": 0.02,
     "win::uzbekistan": 0.0013,
     "win::morocco": 0.0126,
     "win::panama": 0.0018,

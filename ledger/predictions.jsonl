@@ -93,8 +93,8 @@
 {"date": "2026-06-05", "model": "elo", "level": "advance", "team": "croatia", "prob": 0.9778, "market": 0.8157, "provenance": "real", "outcome": 1}
 {"date": "2026-06-05", "model": "zero_knowledge", "level": "advance", "team": "ghana", "prob": 0.4859, "market": 0.5136, "provenance": "real", "outcome": 1}
 {"date": "2026-06-05", "model": "elo", "level": "advance", "team": "ghana", "prob": 0.0479, "market": 0.5136, "provenance": "real", "outcome": 1}
-{"date": "2026-06-05", "model": "zero_knowledge", "level": "win", "team": "spain", "prob": 0.1771, "market": 0.1564, "provenance": "real", "outcome": null}
-{"date": "2026-06-05", "model": "elo", "level": "win", "team": "spain", "prob": 0.1658, "market": 0.1564, "provenance": "real", "outcome": null}
+{"date": "2026-06-05", "model": "zero_knowledge", "level": "win", "team": "spain", "prob": 0.1771, "market": 0.1564, "provenance": "real", "outcome": 1}
+{"date": "2026-06-05", "model": "elo", "level": "win", "team": "spain", "prob": 0.1658, "market": 0.1564, "provenance": "real", "outcome": 1}
 {"date": "2026-06-05", "model": "zero_knowledge", "level": "win", "team": "newzealand", "prob": 0.0002, "market": 0.0005, "provenance": "real", "outcome": 0}
 {"date": "2026-06-05", "model": "elo", "level": "win", "team": "newzealand", "prob": 0.0005, "market": 0.0005, "provenance": "real", "outcome": 0}
 {"date": "2026-06-05", "model": "zero_knowledge", "level": "win", "team": "switzerland", "prob": 0.0069, "market": 0.0093, "provenance": "real", "outcome": 0}
@@ -113,8 +113,8 @@
 {"date": "2026-06-05", "model": "elo", "level": "win", "team": "jordan", "prob": 0.0011, "market": 0.0005, "provenance": "real", "outcome": 0}
 {"date": "2026-06-05", "model": "zero_knowledge", "level": "win", "team": "curacao", "prob": 0.0002, "market": 0.0005, "provenance": "real", "outcome": 0}
 {"date": "2026-06-05", "model": "elo", "level": "win", "team": "curacao", "prob": 0.0001, "market": 0.0005, "provenance": "real", "outcome": 0}
-{"date": "2026-06-05", "model": "zero_knowledge", "level": "win", "team": "argentina", "prob": 0.0888, "market": 0.0858, "provenance": "real", "outcome": null}
-{"date": "2026-06-05", "model": "elo", "level": "win", "team": "argentina", "prob": 0.1216, "market": 0.0858, "provenance": "real", "outcome": null}
+{"date": "2026-06-05", "model": "zero_knowledge", "level": "win", "team": "argentina", "prob": 0.0888, "market": 0.0858, "provenance": "real", "outcome": 0}
+{"date": "2026-06-05", "model": "elo", "level": "win", "team": "argentina", "prob": 0.1216, "market": 0.0858, "provenance": "real", "outcome": 0}
 {"date": "2026-06-05", "model": "zero_knowledge", "level": "win", "team": "germany", "prob": 0.0504, "market": 0.0525, "provenance": "real", "outcome": 0}
 {"date": "2026-06-05", "model": "elo", "level": "win", "team": "germany", "prob": 0.029, "market": 0.0525, "provenance": "real", "outcome": 0}
 {"date": "2026-06-05", "model": "zero_knowledge", "level": "win", "team": "colombia", "prob": 0.0139, "market": 0.0172, "provenance": "real", "outcome": 0}
@@ -854,8 +854,8 @@
 {"date": "2026-06-10", "model": "elo", "level": "reach_F", "team": "england", "prob": 0.119, "market": 0.1815, "provenance": "real", "outcome": 0}
 {"date": "2026-06-10", "model": "zero_knowledge", "level": "reach_F", "team": "panama", "prob": 0.002, "market": 0.0032, "provenance": "real", "outcome": 0}
 {"date": "2026-06-10", "model": "elo", "level": "reach_F", "team": "panama", "prob": 0.011, "market": 0.0032, "provenance": "real", "outcome": 0}
-{"date": "2026-06-10", "model": "zero_knowledge", "level": "win", "team": "spain", "prob": 0.1794, "market": 0.1584, "provenance": "real", "outcome": null}
-{"date": "2026-06-10", "model": "elo", "level": "win", "team": "spain", "prob": 0.1638, "market": 0.1584, "provenance": "real", "outcome": null}
+{"date": "2026-06-10", "model": "zero_knowledge", "level": "win", "team": "spain", "prob": 0.1794, "market": 0.1584, "provenance": "real", "outcome": 1}
+{"date": "2026-06-10", "model": "elo", "level": "win", "team": "spain", "prob": 0.1638, "market": 0.1584, "provenance": "real", "outcome": 1}
 {"date": "2026-06-10", "model": "zero_knowledge", "level": "win", "team": "newzealand", "prob": 0.0002, "market": 0.0005, "provenance": "real", "outcome": 0}
 {"date": "2026-06-10", "model": "elo", "level": "win", "team": "newzealand", "prob": 0.0005, "market": 0.0005, "provenance": "real", "outcome": 0}
 {"date": "2026-06-10", "model": "zero_knowledge", "level": "win", "team": "switzerland", "prob": 0.0085, "market": 0.0111, "provenance": "real", "outcome": 0}
@@ -874,8 +874,8 @@
 {"date": "2026-06-10", "model": "elo", "level": "win", "team": "jordan", "prob": 0.001, "market": 0.0005, "provenance": "real", "outcome": 0}
 {"date": "2026-06-10", "model": "zero_knowledge", "level": "win", "team": "curacao", "prob": 0.0002, "market": 0.0005, "provenance": "real", "outcome": 0}
 {"date": "2026-06-10", "model": "elo", "level": "win", "team": "curacao", "prob": 0.0001, "market": 0.0005, "provenance": "real", "outcome": 0}
-{"date": "2026-06-10", "model": "zero_knowledge", "level": "win", "team": "argentina", "prob": 0.0851, "market": 0.0828, "provenance": "real", "outcome": null}
-{"date": "2026-06-10", "model": "elo", "level": "win", "team": "argentina", "prob": 0.1211, "market": 0.0828, "provenance": "real", "outcome": null}
+{"date": "2026-06-10", "model": "zero_knowledge", "level": "win", "team": "argentina", "prob": 0.0851, "market": 0.0828, "provenance": "real", "outcome": 0}
+{"date": "2026-06-10", "model": "elo", "level": "win", "team": "argentina", "prob": 0.1211, "market": 0.0828, "provenance": "real", "outcome": 0}
 {"date": "2026-06-10", "model": "zero_knowledge", "level": "win", "team": "germany", "prob": 0.0486, "market": 0.0509, "provenance": "real", "outcome": 0}
 {"date": "2026-06-10", "model": "elo", "level": "win", "team": "germany", "prob": 0.0282, "market": 0.0509, "provenance": "real", "outcome": 0}
 {"date": "2026-06-10", "model": "zero_knowledge", "level": "win", "team": "colombia", "prob": 0.0156, "market": 0.0189, "provenance": "real", "outcome": 0}

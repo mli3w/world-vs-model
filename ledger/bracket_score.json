@@ -1,9 +1,9 @@
 {
-  "as_of": "2026-07-16",
+  "as_of": "2026-07-20",
   "points": {
-    "market": 81,
-    "zero_knowledge": 81,
-    "elo": 105
+    "market": 113,
+    "zero_knowledge": 113,
+    "elo": 137
   },
   "levels": [
     {
@@ -47,8 +47,8 @@
           "australia"
         ],
         "market": [
-          "algeria",
-          "bosniaandherzegovina"
+          "bosniaandherzegovina",
+          "algeria"
         ]
       }
     },
@@ -189,7 +189,7 @@
       "label": "Champion",
       "slots": 1,
       "weight": 32,
-      "resolved": false,
+      "resolved": true,
       "picks": {
         "market": [
           "spain",
@@ -213,7 +213,11 @@
           "brazil"
         ]
       },
-      "hits": {},
+      "hits": {
+        "market": 1,
+        "zero_knowledge": 1,
+        "elo": 1
+      },
       "agree": 1,
       "contested": {
         "model": [],
@@ -226,5 +230,5 @@
     "zero_knowledge": "spain",
     "elo": "spain"
   },
-  "n_resolved": 4
+  "n_resolved": 5
 }

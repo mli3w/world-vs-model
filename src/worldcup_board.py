@@ -603,6 +603,100 @@ def _all_groups_complete(results_path=RESULTS_PATH):
         return False
 
 
+# ---- champion celebration: a one-shot canvas fireworks overlay in the winner's colors ----
+# Injected only once a champion exists in the results ledger (5 knockout wins). Fires once per
+# browser session (sessionStorage guard), skips entirely for prefers-reduced-motion users, and
+# removes its canvas when the last particle dies — zero cost after the show. Plain string (not an
+# f-string) so the JS braces stay readable; %COLORS% and %KEY% are substituted at build time.
+_FIREWORKS_JS = """
+<script>
+(function(){
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  try { if (sessionStorage.getItem('%KEY%')) return; sessionStorage.setItem('%KEY%','1'); } catch(e) {}
+  var COLORS = %COLORS%;
+  var cv = document.createElement('canvas');
+  cv.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999';
+  document.body.appendChild(cv);
+  var ctx = cv.getContext('2d'), W, H;
+  function size(){ W = cv.width = innerWidth; H = cv.height = innerHeight; }
+  size(); addEventListener('resize', size);
+  var parts = [], pending = 6;
+  function burst(x, y){
+    var n = 70 + Math.random() * 30 | 0;
+    for (var i = 0; i < n; i++){
+      var a = Math.random() * Math.PI * 2, v = 1.5 + Math.random() * 4.5;
+      parts.push({ x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+                   life: 1, decay: 0.008 + Math.random() * 0.012,
+                   c: COLORS[i % COLORS.length], r: 1.2 + Math.random() * 1.8 });
+    }
+  }
+  for (var b = 0; b < 6; b++)
+    setTimeout(function(){ pending--; burst(W * (0.15 + Math.random() * 0.7), H * (0.12 + Math.random() * 0.38)); },
+               b * 450 + Math.random() * 200);
+  (function tick(){
+    ctx.clearRect(0, 0, W, H);
+    for (var i = parts.length - 1; i >= 0; i--){
+      var p = parts[i];
+      p.x += p.vx; p.y += p.vy; p.vy += 0.045; p.vx *= 0.985; p.vy *= 0.985;
+      p.life -= p.decay;
+      if (p.life <= 0){ parts.splice(i, 1); continue; }
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.c;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r * p.life, 0, 7); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    if (parts.length || pending > 0) requestAnimationFrame(tick);
+    else cv.remove();
+  })();
+})();
+</script>"""
+
+# Champion colors, keyed by normalized team name. Spain: la Roja's red + gold. Extend as needed;
+# unknown champions fall back to the brand palette so the show still fires.
+_CHAMPION_COLORS = {
+    "spain": ["#c60b1e", "#ffc400", "#ffffff"],
+    "argentina": ["#75aadb", "#ffffff", "#f6b40e"],
+}
+
+
+def _champion_from_results(results_path=RESULTS_PATH):
+    """The tournament champion, or None. A champion is the team with 5 decisive knockout wins
+    (R32→R16→QF→SF→Final). PK-decided finals would need the ledger to record the winner's
+    scoreline as decisive (feed_result convention), so this stays a simple counter."""
+    import json as _json
+    try:
+        with open(results_path, encoding="utf-8") as f:
+            results = _json.load(f) or []
+    except (FileNotFoundError, ValueError):
+        return None
+    wins = {}
+    for r in results:
+        if r.get("stage") != "ko":
+            continue
+        if r["ga"] > r["gb"]:
+            wins[r["a"]] = wins.get(r["a"], 0) + 1
+        elif r["gb"] > r["ga"]:
+            wins[r["b"]] = wins.get(r["b"], 0) + 1
+    for t, n in wins.items():
+        if n >= 5:
+            return t
+    return None
+
+
+def _fireworks_html():
+    """The celebration script when a champion exists, else ''. Session-keyed to the champion so
+    a future edition (new champion) re-arms the show for returning visitors."""
+    champ = _champion_from_results()
+    if not champ:
+        return ""
+    nz = WM.WL._norm(champ)
+    colors = _CHAMPION_COLORS.get(nz, ["#3fd9a3", "#4f7ce8", "#8b6dff"])
+    import json as _json
+    return (_FIREWORKS_JS
+            .replace("%COLORS%", _json.dumps(colors))
+            .replace("%KEY%", f"wvm_fw_{nz}"))
+
+
 def _kickoff_note(today=None):
     """Countdown / live-state note so the page never looks dead at any phase."""
     today = today or dt.date.today()
@@ -2168,6 +2262,7 @@ function tg(){{var h=document.documentElement;var n=h.getAttribute('data-theme')
 _ti();
 </script>
 {poll_widget}
+{_fireworks_html()}
 </body></html>"""
 
 
