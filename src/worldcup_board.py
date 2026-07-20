@@ -624,48 +624,93 @@ _FIREWORKS_JS = """
   if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   try { if (sessionStorage.getItem('%KEY%')) return; sessionStorage.setItem('%KEY%','1'); } catch(e) {}
   var COLORS = %COLORS%;
+  var FLAG = %FLAG%;                                    // [[color, weight], ...] top→bottom, or null
+  var DPR = Math.min(window.devicePixelRatio || 1, 2);
   var cv = document.createElement('canvas');
-  cv.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999';
+  cv.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9999';
   document.body.appendChild(cv);
   var ctx = cv.getContext('2d'), W, H;
-  function size(){ W = cv.width = innerWidth; H = cv.height = innerHeight; }
+  function size(){ W = cv.width = innerWidth * DPR; H = cv.height = innerHeight * DPR;
+                   cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px'; }
   size(); addEventListener('resize', size);
-  var parts = [], pending = 6;
-  function burst(x, y){
-    var n = 70 + Math.random() * 30 | 0;
+  var parts = [], endAt = 0;
+  function nowms(){ return (window.performance && performance.now) ? performance.now() : +new Date(); }
+
+  // A celebratory shell: a dense radial burst that trails and falls.
+  function burst(x, y, colors){
+    var n = 90 + Math.random() * 50 | 0;
     for (var i = 0; i < n; i++){
-      var a = Math.random() * Math.PI * 2, v = 1.5 + Math.random() * 4.5;
+      var a = Math.random() * Math.PI * 2, v = (1.4 + Math.random() * 5.4) * DPR;
       parts.push({ x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
-                   life: 1, decay: 0.008 + Math.random() * 0.012,
-                   c: COLORS[i % COLORS.length], r: 1.2 + Math.random() * 1.8 });
+                   life: 1, decay: 0.006 + Math.random() * 0.010,
+                   c: colors[i % colors.length], r: (1.3 + Math.random() * 2.0) * DPR, g: 0.05 * DPR });
     }
   }
-  for (var b = 0; b < 6; b++)
-    setTimeout(function(){ pending--; burst(W * (0.15 + Math.random() * 0.7), H * (0.12 + Math.random() * 0.38)); },
-               b * 450 + Math.random() * 200);
+
+  // The finale: one giant shell that explodes from centre and its embers settle into the flag —
+  // three horizontal colour bands (FLAG), hold ~1.3s, then rain down.
+  function flagFinale(){
+    var fw = Math.min(W * 0.66, 560 * DPR), fh = fw * 2 / 3, cx = W / 2, cy = H * 0.40;
+    var cols = Math.max(26, Math.round(fw / (10 * DPR))), rows = Math.round(cols * 2 / 3);
+    var totW = 0, k; for (k = 0; k < FLAG.length; k++) totW += FLAG[k][1];
+    burst(cx, cy, [FLAG[0][0], FLAG[Math.min(1,FLAG.length-1)][0], '#ffffff']);   // the ignition flash
+    for (var ry = 0; ry < rows; ry++){
+      var frac = ry / (rows - 1 || 1), acc = 0, col = '#fff';
+      for (k = 0; k < FLAG.length; k++){ acc += FLAG[k][1] / totW; if (frac <= acc){ col = FLAG[k][0]; break; } }
+      for (var rx = 0; rx < cols; rx++){
+        parts.push({ flag: true, t: 0, x: cx, y: cy, vy: 0,
+                     tx: cx + (rx / (cols - 1) - 0.5) * fw,
+                     ty: cy + (ry / (rows - 1) - 0.5) * fh,
+                     c: col, r: 1.7 * DPR, life: 1 });
+      }
+    }
+  }
+
+  var SHELLS = 8, gap = 360;
+  for (var b = 0; b < SHELLS; b++) (function(b){
+    setTimeout(function(){ burst(W * (0.12 + Math.random() * 0.76), H * (0.10 + Math.random() * 0.34), COLORS); },
+               b * gap + Math.random() * 150);
+  })(b);
+  if (FLAG){ setTimeout(flagFinale, SHELLS * gap + 500); endAt = nowms() + SHELLS * gap + 3200; }
+  else endAt = nowms() + SHELLS * gap + 1400;
+
   (function tick(){
     ctx.clearRect(0, 0, W, H);
     for (var i = parts.length - 1; i >= 0; i--){
       var p = parts[i];
-      p.x += p.vx; p.y += p.vy; p.vy += 0.045; p.vx *= 0.985; p.vy *= 0.985;
-      p.life -= p.decay;
-      if (p.life <= 0){ parts.splice(i, 1); continue; }
-      ctx.globalAlpha = p.life;
-      ctx.fillStyle = p.c;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r * p.life, 0, 7); ctx.fill();
+      if (p.flag){
+        p.t++;
+        if (p.t < 24){ p.x += (p.tx - p.x) * 0.20; p.y += (p.ty - p.y) * 0.20; ctx.globalAlpha = 1; }
+        else if (p.t < 24 + 80){ p.x = p.tx; p.y = p.ty; ctx.globalAlpha = 1; }
+        else { p.vy += 0.16 * DPR; p.y += p.vy; p.x += (Math.random() - 0.5) * 0.6 * DPR;
+               p.life -= 0.022; ctx.globalAlpha = p.life > 0 ? p.life : 0;
+               if (p.life <= 0){ parts.splice(i, 1); continue; } }
+        ctx.fillStyle = p.c; ctx.fillRect(p.x - p.r, p.y - p.r, p.r * 2.3, p.r * 2.3);
+      } else {
+        p.x += p.vx; p.y += p.vy; p.vy += p.g; p.vx *= 0.985; p.vy *= 0.985; p.life -= p.decay;
+        if (p.life <= 0){ parts.splice(i, 1); continue; }
+        ctx.globalAlpha = p.life; ctx.fillStyle = p.c;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * p.life, 0, 7); ctx.fill();
+      }
     }
     ctx.globalAlpha = 1;
-    if (parts.length || pending > 0) requestAnimationFrame(tick);
+    if (parts.length || nowms() < endAt) requestAnimationFrame(tick);
     else cv.remove();
   })();
 })();
 </script>"""
 
-# Champion colors, keyed by normalized team name. Spain: la Roja's red + gold. Extend as needed;
-# unknown champions fall back to the brand palette so the show still fires.
+# Champion colours + flag bands, keyed by normalized team name. `colors` drives the celebratory
+# shells; `flag` (top→bottom [colour, weight] bands) drives the finale flag formation. Spain: the
+# civil flag's red-gold-red (gold band double height). Unknown champions fall back to the brand
+# palette with no flag finale (the shells still fire).
 _CHAMPION_COLORS = {
     "spain": ["#c60b1e", "#ffc400", "#ffffff"],
     "argentina": ["#75aadb", "#ffffff", "#f6b40e"],
+}
+_CHAMPION_FLAG = {
+    "spain": [["#c60b1e", 1], ["#ffc400", 2], ["#c60b1e", 1]],
+    "argentina": [["#75aadb", 1], ["#ffffff", 1], ["#75aadb", 1]],
 }
 
 
@@ -707,10 +752,12 @@ def _fireworks_html():
         return ""
     nz = WM.WL._norm(champ)
     colors = _CHAMPION_COLORS.get(nz, ["#3fd9a3", "#4f7ce8", "#8b6dff"])
+    flag = _CHAMPION_FLAG.get(nz)                              # None → no flag finale (shells only)
     import json as _json
     return (_FIREWORKS_JS
             .replace("%COLORS%", _json.dumps(colors))
-            .replace("%KEY%", f"wvm_fw_{nz}"))
+            .replace("%FLAG%", _json.dumps(flag))
+            .replace("%KEY%", f"wvm_fw2_{nz}"))          # v2 key: re-arms the dramatic flag finale
 
 
 def _kickoff_note(today=None):
@@ -2311,6 +2358,10 @@ function _ti(){{document.getElementById('th').textContent=
 function tg(){{var h=document.documentElement;var n=h.getAttribute('data-theme')==='light'?'dark':'light';
   h.setAttribute('data-theme',n);try{{localStorage.setItem('cm-theme',n);}}catch(e){{}}_ti();}}
 _ti();
+// Default the book section to the Elo long-only tab when it exists — it's the most instructive
+// view now that the tournament is over (same signal, simple construction, +$852 vs the tracked
+// book's -$372). Purely a default selection; no scroll jump.
+if(document.getElementById('tb-elolo'))tab('elolo');
 </script>
 {poll_widget}
 {_fireworks_html()}
