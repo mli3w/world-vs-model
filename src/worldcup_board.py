@@ -416,7 +416,13 @@ def _bma_html(path=BMA_PATH):
         '<table class="bmatab"><thead><tr><th class="l team">Round</th>'
         '<th>Model confidence (Zero-knowledge ←→ Informed · Elo)</th><th class=l>Leader</th></tr>'
         '</thead><tbody>' + "".join(rows) + '</tbody></table>'
-        '<p class="note sub">Why average? Combined forecasts beat their components on average — a '
+        + ('<p class="note sub">The weights converge to ~50/50 at the final rungs — not because the '
+           'models agree, but because there\'s barely any signal to separate them there: the '
+           '<b>win</b> rung has 48 forecasts but only <b>one</b> actual champion, so a model\'s whole '
+           'score turns on how it priced a single team. Both gave Spain ~16–17%, so they end up all '
+           'but tied (Brier 0.0156 vs 0.0155). The loudest forecast is built on the thinnest '
+           'evidence.</p>' if _tournament_complete() else '')
+        + '<p class="note sub">Why average? Combined forecasts beat their components on average — a '
         'replicated finding across forecasting (IPCC averages climate models, BoE averages inflation '
         'models, ensembles routinely win Kaggle). The catch with one tournament: weights move modestly '
         'and the ensemble itself is now a third <a href="methodology.html">falsifiable</a> claim.</p>')
