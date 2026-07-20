@@ -54,11 +54,17 @@ jobs:
         continue-on-error: true                # only updates the cache; falls back to Elo if it fails
         run: python src/snapshot_polymarket_prices.py
 
+      - name: Build the hypothetical Elo long-only book (self-heals if the ledger is missing)
+        # Idempotent: skips if ledger/wc_elo_longonly.jsonl already exists. Frozen day-0 forecast,
+        # so it's built once and committed; this step is a safety net for a fresh checkout.
+        continue-on-error: true
+        run: python src/make_elo_longonly.py
+
       - name: Auto-resolve completed rungs (advance / QF / SF / F / win) against results
-        # Settles the predictions ledger + the 4 paper books + scorecard.json + bracket_score.json
-        # + bma.json. Idempotent: rungs already resolved are skipped. Without this, the credibility
-        # strip, the bracket score race, and the BMA weights all stay at their pre-tournament zeros
-        # even after the round has fully resolved.
+        # Settles the predictions ledger + the paper books (incl. the Elo long-only) +
+        # scorecard.json + bracket_score.json + bma.json. Idempotent: rungs already resolved are
+        # skipped. Without this, the credibility strip, the bracket score race, and the BMA weights
+        # all stay at their pre-tournament zeros even after the round has fully resolved.
         continue-on-error: true
         run: python src/auto_resolve.py
 

@@ -30,6 +30,7 @@ CORE = os.path.join(LEDGER, "wc_core.jsonl")        # frozen zero-knowledge Buy 
 LIVE = os.path.join(LEDGER, "wc_live.jsonl")        # frozen zero-knowledge Active book
 ELO_CORE = os.path.join(LEDGER, "wc_elo_core.jsonl")  # frozen informed (Elo) Buy & Hold book
 ELO_LIVE = os.path.join(LEDGER, "wc_elo_live.jsonl")  # frozen informed (Elo) Active book
+ELO_LONGONLY = os.path.join(LEDGER, "wc_elo_longonly.jsonl")  # hypothetical Elo long-only book
 BRACKET_SCORE = os.path.join(LEDGER, "bracket_score.json")  # the knockout-bracket scorecard
 BMA_PATH = os.path.join(LEDGER, "bma.json")               # per-level model weights + ensemble probs
 # Every market rung we register a forecast for — the whole knockout ladder, not just the ends, so
@@ -287,7 +288,7 @@ def resolve(level, outcomes):
             p["outcome"] = int(outcomes[p["team"]])
             n += 1
     _write(preds, PRED)
-    for path in (CORE, LIVE, ELO_CORE, ELO_LIVE):
+    for path in (CORE, LIVE, ELO_CORE, ELO_LIVE, ELO_LONGONLY):
         rows = _load(path)
         for r in rows:
             if r.get("status") == "open" and r["level"] == level and r["team"] in outcomes:

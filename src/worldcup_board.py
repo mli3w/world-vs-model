@@ -35,6 +35,7 @@ CORE_LEDGER = os.path.join("ledger", "wc_core.jsonl")     # zero-knowledge Buy &
 LIVE_LEDGER = os.path.join("ledger", "wc_live.jsonl")     # zero-knowledge Active (matchday timeline)
 ELO_CORE_LEDGER = os.path.join("ledger", "wc_elo_core.jsonl")   # informed (Elo) Buy & Hold
 ELO_LIVE_LEDGER = os.path.join("ledger", "wc_elo_live.jsonl")   # informed (Elo) Active
+ELO_LONGONLY_LEDGER = os.path.join("ledger", "wc_elo_longonly.jsonl")  # hypothetical Elo long-only
 SCORECARD = os.path.join("ledger", "scorecard.json")      # the public, resolved-out-of-sample record
 BRACKET_SCORE = os.path.join("ledger", "bracket_score.json")  # the knockout-bracket scorecard
 BMA_PATH = os.path.join("ledger", "bma.json")             # per-level model weights + ensemble probs
@@ -257,9 +258,14 @@ def _scorecard_tiles(path=SCORECARD, results_path=RESULTS_PATH, today=None):
     if n_res:                                                  # rounds have resolved → real metrics
         ov = d.get("overall", {})
         hit, lift, brier = ov.get("hit_rate"), ov.get("lift"), ov.get("brier")
+        # Once the tournament has concluded, the third tile flips from the live "lift" metric
+        # to a terminal FINAL status so the strip reads as a closed scoreboard, not a live one.
+        third = (("status", "FINAL", f"{_champion_from_results()} champions")
+                 if _tournament_complete(results_path) else
+                 ("lift vs chance", f"{lift:+.2f}x" if lift is not None else "—", "skill over base rate"))
         return [("hit rate", f"{hit*100:.0f}%" if hit is not None else "—", f"{n_res} resolved"),
-                ("lift vs chance", f"{lift:+.2f}x" if lift is not None else "—", "skill over base rate"),
-                ("brier score", f"{brier:.3f}" if brier is not None else "—", "lower is better")]
+                ("brier score", f"{brier:.3f}" if brier is not None else "—", "lower is better"),
+                third]
 
     if today < KICKOFF:                                        # truly pre-tournament
         return [("claims registered", str(n_tot), "timestamped, falsifiable"),
@@ -422,6 +428,10 @@ def _upcoming_html(path=UPCOMING_PATH):
     compact "watch these" list — the matches resolve the disagreement publicly, no retroactive
     narrative. Returns '' when the cache is missing or empty so nothing half-built ships."""
     import json as _json
+    # Once the tournament is over there is nothing upcoming to watch — never render a stale
+    # fixtures list from a frozen cache.
+    if _tournament_complete():
+        return ""
     try:
         with open(path, encoding="utf-8") as f:
             d = _json.load(f) or {}
@@ -683,6 +693,12 @@ def _champion_from_results(results_path=RESULTS_PATH):
     return None
 
 
+def _tournament_complete(results_path=RESULTS_PATH):
+    """True once a champion exists — the whole 104-match tournament has resolved. This is the
+    terminal phase: the board flips from live-forecast framing to final-scoreboard framing."""
+    return _champion_from_results(results_path) is not None
+
+
 def _fireworks_html():
     """The celebration script when a champion exists, else ''. Session-keyed to the champion so
     a future edition (new champion) re-arms the show for returning visitors."""
@@ -703,6 +719,10 @@ def _kickoff_note(today=None):
     days_to_kick = (KICKOFF - today).days
     if days_to_kick > 0:
         return f'Kicks off in <b>{days_to_kick}</b> day{"s" if days_to_kick != 1 else ""} · Jun 11, 2026'
+    # Terminal state: a champion exists → the tournament is over.
+    champ = _champion_from_results()
+    if champ:
+        return f'<b>{champ} are World Champions</b> · every forecast now scored'
     # Tournament has started — distinguish group stage vs knockout phase.
     if _all_groups_complete():
         days_to_r32 = (_R32_START - today).days
@@ -726,7 +746,9 @@ def _keydates(today=None):
     """A compact tournament timeline a fan/punter can scan: the key dates + a phase-aware badge."""
     today = today or dt.date.today()
     days = (KICKOFF - today).days
-    if days > 0:
+    if _tournament_complete():
+        badge = '<span class=kd-cd>concluded</span>'
+    elif days > 0:
         badge = f'<span class=kd-cd>{days} days to kickoff</span>'
     elif _all_groups_complete():
         days_to_r32 = (_R32_START - today).days
@@ -769,10 +791,14 @@ def _fixtures(groups):
     # Once groups have resolved, the trailing "knockout fixtures appear once groups resolve"
     # disclaimer reads as stale — the R32 fixtures are already known and surfaced in the live
     # Watch-next panel above. Phase-aware copy keeps the page honest.
-    knockout_note = (
-        ' Knockout fixtures are now live in the <b>Watch next</b> panel near the top of the page.'
-        if _all_groups_complete() else
-        ' Knockout fixtures depend on results, so they appear once the groups resolve.')
+    if _tournament_complete():
+        knockout_note = (' The knockout bracket played out in full — see the <b>Outcome map</b> '
+                         'and <b>Bracket score</b> for how every round resolved.')
+    elif _all_groups_complete():
+        knockout_note = (' Knockout fixtures are now live in the <b>Watch next</b> panel near the '
+                         'top of the page.')
+    else:
+        knockout_note = ' Knockout fixtures depend on results, so they appear once the groups resolve.'
     return (
         f'<h2 id=fixtures>Group fixtures <span class=sub>— who plays whom, from the draw</span></h2>'
         f'<p class=note>Every group\'s matchups by matchday, straight from the verified 2026 draw. '
@@ -1375,7 +1401,7 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
         freshly-sized PROPOSED `pbook`. `kind` ('core'|'live') = hold vs rebalance; `model`
         ('zk'|'elo') picks which engine's edges and which per-bet rationale."""
         rows, tot = _marked_rows(ladder, path)
-        pref = "Elo · " if model == "elo" else ""
+        pref = "Elo · " if model == "elo" else ("Elo long-only · " if model == "elolo" else "")
         held = (kind == "core")
         legs, trs = [], []
         if rows:                                                    # a real, entered book
@@ -1439,6 +1465,16 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
         if model == "elo":
             note += (" <b>Knockout rounds only</b> (advance excluded); the rows are largely <i>one</i> "
                      "correlated 'results-vs-reputation' bet, not diversified breadth.")
+        elif model == "elolo":
+            note = ("<b>Hypothetical — not a tracked claim.</b> The SAME day-0 Elo forecast, built the "
+                    "simple way: <b>long only</b> the model's top-ranked teams at each knockout rung "
+                    "(top-8 to reach QF, top-4 SF, top-2 Final, top-2 champion), conviction-weighted by "
+                    "probability, no shorts. This is the &lsquo;follow the most probable path&rsquo; book. "
+                    "Prices are the frozen day-0 market where the tracked book traded that team, else the "
+                    "Elo probability as a proxy (no trade &rArr; the model-market gap was inside the "
+                    "half-spread). It exists to show that the Elo <i>signal</i> was sound — the tracked "
+                    "book&rsquo;s loss was a <i>construction</i> choice (edge-sizing + shorts), not a "
+                    "model failure.")
         tbl = (f'<p class=note>{note} <b>Click a row</b> for the why; <b>click a header</b> to sort.</p>'
                f'<table class="trades sortable"><thead><tr>'
                f'<th data-c=0 class=l>Side</th><th data-c=1 class=l>Team</th><th data-c=2 class=l>Round</th>'
@@ -1462,6 +1498,15 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
         elol_money = _book_money(elol["pills"], elol["legs"])
     else:
         eloc_book = elol_book = eloc_money = elol_money = ""
+    # Hypothetical Elo long-only book — rendered only if its ledger exists (built by
+    # make_elo_longonly.py). Shows the "follow the probable path" construction on the same signal.
+    elo_lo_exists = os.path.exists(ELO_LONGONLY_LEDGER)
+    if fundamental and elo_lo_exists:
+        elolo = _render_book(ELO_LONGONLY_LEDGER, "core", ebook, elo_lu, "elolo")
+        elolo_book = elolo["html"]
+        elolo_money = _book_money(elolo["pills"], elolo["legs"])
+    else:
+        elolo_book = elolo_money = ""
 
     # ---- catchy hook: a CURATED set of disagreements (biggest BUY, biggest FADE, biggest ARB)
     #      so the strip tells a varied story rather than three of the same.
@@ -1554,11 +1599,17 @@ def build_html(ladder=None, bankroll=1000.0, power=1.15, core_path=CORE_LEDGER,
         if not elo_active_silent:
             elo_tabs += ('<button class="tab pulse" id=tb-elol onclick="tab(\'elol\')">🧮 Elo · Active '
                          '<span class=sub>informed, daily</span></button>')
+        if elo_lo_exists:
+            elo_tabs += ('<button class="tab" id=tb-elolo onclick="tab(\'elolo\')">🧪 Elo · Long-only '
+                         '<span class=sub>hypothetical</span></button>')
     elo_panes = ""
     if fundamental:
         elo_panes = f'<div id=pane-eloc class=pane hidden>{eloc_money}<div class=scroll>{eloc_book}</div></div>'
         if not elo_active_silent:
             elo_panes += f'<div id=pane-elol class=pane hidden>{elol_money}<div class=scroll>{elol_book}</div></div>'
+        if elo_lo_exists:
+            elo_panes += (f'<div id=pane-elolo class=pane hidden>{elolo_money}'
+                          f'<div class=scroll>{elolo_book}</div></div>')
 
     # ZK Active tab + pane: shown only when the daily rebalancer has actually fired (the ledger
     # has diverged from Buy & Hold). When inert, we suppress both AND add a small note under
